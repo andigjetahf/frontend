@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base ─────────────────────────────────────────────── */
+:root {
+  --bg: #0a0a0a;
+  --card: #111111;
+  --border: #1a1a1a;
+  --green: #00ff41;
+  --cyan: #00d4ff;
+  --red: #ff0040;
+}
+
+html,
+body {
+  background-color: var(--bg);
+  color: #e5e5e5;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+}
+
+/* ─── Custom Scrollbar ──────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+  background: #1a1a1a;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00ff4140;
+}
+
+/* ─── Glow effects ──────────────────────────────────────── */
+.glow-green {
+  text-shadow:
+    0 0 5px #00ff41,
+    0 0 10px #00ff41,
+    0 0 20px #00ff41;
+}
+
+.glow-cyan {
+  text-shadow:
+    0 0 5px #00d4ff,
+    0 0 10px #00d4ff,
+    0 0 20px #00d4ff;
+}
+
+.glow-red {
+  text-shadow:
+    0 0 5px #ff0040,
+    0 0 10px #ff0040;
+}
+
+/* ─── Scanline overlay ──────────────────────────────────── */
+.scanline-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+}
+
+/* Moving scan line */
+.scanline-overlay::after {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(0, 255, 65, 0.06),
+    transparent
+  );
+  animation: scanline 8s linear infinite;
+}
+
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+/* ─── Glow animation ────────────────────────────────────── */
+@keyframes glow {
+  from {
+    text-shadow:
+      0 0 5px #00ff41,
+      0 0 10px #00ff41,
+      0 0 15px #00ff41;
+  }
+  to {
+    text-shadow:
+      0 0 10px #00ff41,
+      0 0 20px #00ff41,
+      0 0 30px #00ff41;
+  }
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+/* ─── Input overrides ───────────────────────────────────── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #e5e5e5;
+  -webkit-box-shadow: 0 0 0 1000px #111111 inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ─── Focus rings ───────────────────────────────────────── */
+input:focus,
+button:focus-visible {
+  outline: none;
+}
+
+input:focus-within {
+  box-shadow: 0 0 0 1px #00ff41;
+}
