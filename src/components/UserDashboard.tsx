@@ -125,6 +125,8 @@ export default function UserDashboard() {
       instance.status === 'PROVISIONING' ||
       instance.status === 'STOPPING');
 
+  const safeChallenges = Array.isArray(challenges) ? challenges : [];
+
   return (
     <div className="space-y-8">
       {/* Error */}
@@ -166,13 +168,13 @@ export default function UserDashboard() {
           <h2 className="font-mono text-cyber-green text-xs uppercase tracking-widest mb-3">
             ▶ Available Challenges
           </h2>
-          {challenges.length === 0 ? (
+          {safeChallenges.length === 0 ? (
             <p className="font-mono text-gray-500 text-sm">
               No challenges available. Check back later.
             </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {challenges.map((ch) => (
+              {safeChallenges.map((ch) => (
                 <div
                   key={ch.id}
                   className="

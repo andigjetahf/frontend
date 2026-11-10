@@ -112,6 +112,8 @@ export default function AdminDashboard() {
     );
   }
 
+  const safeInstances = Array.isArray(instances) ? instances : [];
+
   return (
     <div className="space-y-8">
       {/* Error */}
@@ -168,7 +170,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {instances.length === 0 ? (
+                {safeInstances.length === 0 ? (
                   <tr>
                     <td
                       colSpan={7}
@@ -178,7 +180,7 @@ export default function AdminDashboard() {
                     </td>
                   </tr>
                 ) : (
-                  instances.map((inst) => (
+                  safeInstances.map((inst) => (
                     <tr
                       key={inst.id}
                       className="border-b border-dark-border hover:bg-dark-hover transition-colors duration-100"

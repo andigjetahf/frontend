@@ -19,7 +19,9 @@ function RankBadge({ rank }: { rank: number }) {
 }
 
 export default function Scoreboard({ entries }: Props) {
-  if (entries.length === 0) {
+  const safeEntries = Array.isArray(entries) ? entries : [];
+
+  if (safeEntries.length === 0) {
     return (
       <div className="border border-dark-border rounded-lg p-8 text-center font-mono text-gray-600 text-sm">
         No scores yet. Be the first to solve a challenge.
@@ -44,7 +46,7 @@ export default function Scoreboard({ entries }: Props) {
             </tr>
           </thead>
           <tbody>
-            {entries.map((entry) => {
+            {safeEntries.map((entry) => {
               const isTop3 = entry.rank <= 3;
               return (
                 <tr
