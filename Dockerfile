@@ -9,6 +9,16 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Build-time args — must be declared here so Next.js bakes them into the bundle
+ARG NEXT_PUBLIC_AUTH_SERVICE_URL
+ARG NEXT_PUBLIC_BACKEND_URL
+ARG NEXT_PUBLIC_CTF_DOMAIN
+
+ENV NEXT_PUBLIC_AUTH_SERVICE_URL=$NEXT_PUBLIC_AUTH_SERVICE_URL
+ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
+ENV NEXT_PUBLIC_CTF_DOMAIN=$NEXT_PUBLIC_CTF_DOMAIN
+
 # Ensure public dir exists so COPY in runner stage never fails
 RUN mkdir -p public
 RUN npm run build
