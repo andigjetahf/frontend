@@ -23,6 +23,18 @@ export interface User {
   role: UserRole;
 }
 
+export interface AdminUser {
+  id: string;
+  username: string;
+  email: string;
+  displayName: string;
+  role: UserRole;
+  createdAt: string;
+  updatedAt: string;
+  instancesCount?: number;
+  solvedCount?: number;
+}
+
 export interface JwtPayload {
   id: string;
   username: string;

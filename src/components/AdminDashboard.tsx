@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { AdminOverview, Instance, ScoreboardEntry } from '@/types';
 import { getAdminOverview, getAllInstances, killInstance, getScoreboard } from '@/lib/backendApi';
 import Scoreboard from './Scoreboard';
+import UserManagementModal from './UserManagementModal';
 import clsx from 'clsx';
 
 const POLL_INTERVAL_MS = 15_000;
@@ -12,21 +13,41 @@ function StatCard({
   label,
   value,
   accent = 'green',
+  onClick,
+  badge,
 }: {
   label: string;
   value: number | string;
   accent?: 'green' | 'cyan' | 'red' | 'yellow';
+  onClick?: () => void;
+  badge?: string;
 }) {
   const color = {
-    green: 'text-cyber-green border-cyber-green/30',
-    cyan: 'text-cyber-cyan border-cyber-cyan/30',
-    red: 'text-cyber-red border-cyber-red/30',
-    yellow: 'text-cyber-yellow border-cyber-yellow/30',
+    green: 'text-cyber-green border-cyber-green/30 hover:border-cyber-green/60',
+    cyan: 'text-cyber-cyan border-cyber-cyan/30 hover:border-cyber-cyan/60',
+    red: 'text-cyber-red border-cyber-red/30 hover:border-cyber-red/60',
+    yellow: 'text-cyber-yellow border-cyber-yellow/30 hover:border-cyber-yellow/60',
   }[accent];
 
   return (
-    <div className={clsx('border bg-dark-card rounded-lg p-4', color)}>
-      <p className="font-mono text-xs text-gray-500 uppercase tracking-widest mb-1">{label}</p>
+    <div
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      className={clsx(
+        'border bg-dark-card rounded-lg p-4 transition-all duration-150',
+        color,
+        onClick && 'cursor-pointer hover:scale-[1.02] shadow-[0_0_20px_rgba(0,0,0,0.4)] group'
+      )}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <p className="font-mono text-xs text-gray-500 uppercase tracking-widest">{label}</p>
+        {badge && (
+          <span className="font-mono text-[10px] text-cyber-cyan border border-cyber-cyan/40 px-1.5 py-0.5 rounded bg-cyber-cyan/10 group-hover:bg-cyber-cyan group-hover:text-dark-bg transition-colors">
+            {badge}
+          </span>
+        )}
+      </div>
       <p className={clsx('font-mono text-3xl font-bold', color.split(' ')[0])}>{value}</p>
     </div>
   );
@@ -60,6 +81,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [killing, setKilling] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [userModalOpen, setUserModalOpen] = useState(false);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchAll = useCallback(async (silent = false) => {
@@ -130,7 +152,13 @@ export default function AdminDashboard() {
             ▶ System Overview
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label="Total Users" value={overview.totalUsers} accent="green" />
+            <StatCard
+              label="Total Users"
+              value={overview.totalUsers}
+              accent="green"
+              badge="[ MANAGE ]"
+              onClick={() => setUserModalOpen(true)}
+            />
             <StatCard label="Active Instances" value={overview.activeInstances} accent="cyan" />
             <StatCard label="Challenges" value={overview.challengesCount} accent="yellow" />
             <StatCard label="Recent Submissions" value={overview.recentSubmissions} accent="green" />
@@ -258,6 +286,12 @@ export default function AdminDashboard() {
         </h2>
         <Scoreboard entries={scoreboard} />
       </section>
+      {/* User Management Modal */}
+      <UserManagementModal
+        isOpen={userModalOpen}
+        onClose={() => setUserModalOpen(false)}
+        onUserCountChanged={() => fetchAll(true)}
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { User, Challenge, Instance, AdminOverview, ScoreboardEntry } from '@/types';
+import type { User, Challenge, Instance, AdminOverview, ScoreboardEntry, AdminUser, UserRole } from '@/types';
 
 export const backendApi = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://192.168.200.13:5000',
@@ -111,4 +111,38 @@ export async function getScoreboard(): Promise<ScoreboardEntry[]> {
     totalPoints: entry.totalPoints ?? entry.points ?? 0,
     solvedCount: entry.solvedCount ?? entry.challengesSolved ?? 0,
   }));
+}
+
+export async function getAdminUsers(): Promise<AdminUser[]> {
+  const response = await backendApi.get<any>('/api/admin/users');
+  if (Array.isArray(response.data)) return response.data;
+  if (Array.isArray(response.data?.users)) return response.data.users;
+  return [];
+}
+
+export async function createAdminUser(data: {
+  username: string;
+  email: string;
+  displayName: string;
+  role: UserRole;
+}): Promise<AdminUser> {
+  const response = await backendApi.post<any>('/api/admin/users', data);
+  return response.data?.user ?? response.data;
+}
+
+export async function updateAdminUser(
+  id: string,
+  data: {
+    username?: string;
+    email?: string;
+    displayName?: string;
+    role?: UserRole;
+  }
+): Promise<AdminUser> {
+  const response = await backendApi.put<any>(`/api/admin/users/${id}`, data);
+  return response.data?.user ?? response.data;
+}
+
+export async function deleteAdminUser(id: string): Promise<void> {
+  await backendApi.delete(`/api/admin/users/${id}`);
 }
