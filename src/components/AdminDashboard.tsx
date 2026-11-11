@@ -5,6 +5,7 @@ import type { AdminOverview, Instance, ScoreboardEntry } from '@/types';
 import { getAdminOverview, getAllInstances, killInstance, getScoreboard } from '@/lib/backendApi';
 import Scoreboard from './Scoreboard';
 import UserManagementModal from './UserManagementModal';
+import ChallengeManagementModal from './ChallengeManagementModal';
 import clsx from 'clsx';
 
 const POLL_INTERVAL_MS = 15_000;
@@ -82,6 +83,7 @@ export default function AdminDashboard() {
   const [killing, setKilling] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [userModalOpen, setUserModalOpen] = useState(false);
+  const [challengeModalOpen, setChallengeModalOpen] = useState(false);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchAll = useCallback(async (silent = false) => {
@@ -160,7 +162,13 @@ export default function AdminDashboard() {
               onClick={() => setUserModalOpen(true)}
             />
             <StatCard label="Active Instances" value={overview.activeInstances} accent="cyan" />
-            <StatCard label="Challenges" value={overview.challengesCount} accent="yellow" />
+            <StatCard
+              label="Challenges"
+              value={overview.challengesCount}
+              accent="yellow"
+              badge="[ MANAGE ]"
+              onClick={() => setChallengeModalOpen(true)}
+            />
             <StatCard label="Recent Submissions" value={overview.recentSubmissions} accent="green" />
           </div>
         </section>
@@ -291,6 +299,13 @@ export default function AdminDashboard() {
         isOpen={userModalOpen}
         onClose={() => setUserModalOpen(false)}
         onUserCountChanged={() => fetchAll(true)}
+      />
+
+      {/* Challenge Management Modal */}
+      <ChallengeManagementModal
+        isOpen={challengeModalOpen}
+        onClose={() => setChallengeModalOpen(false)}
+        onChallengeCountChanged={() => fetchAll(true)}
       />
     </div>
   );
