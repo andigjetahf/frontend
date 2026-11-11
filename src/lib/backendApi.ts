@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { User, Challenge, Instance, AdminOverview, ScoreboardEntry, AdminUser, UserRole } from '@/types';
+import type { User, Challenge, Instance, AdminOverview, ScoreboardEntry, AdminUser, AdminChallenge, UserRole } from '@/types';
 
 export const backendApi = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://192.168.200.13:5000',
@@ -145,4 +145,25 @@ export async function updateAdminUser(
 
 export async function deleteAdminUser(id: string): Promise<void> {
   await backendApi.delete(`/api/admin/users/${id}`);
+}
+
+export async function getAdminChallenges(): Promise<AdminChallenge[]> {
+  const response = await backendApi.get<any>('/api/admin/challenges');
+  if (Array.isArray(response.data)) return response.data;
+  if (Array.isArray(response.data?.challenges)) return response.data.challenges;
+  return [];
+}
+
+export async function createAdminChallenge(data: Partial<AdminChallenge>): Promise<AdminChallenge> {
+  const response = await backendApi.post<any>('/api/admin/challenges', data);
+  return response.data?.challenge ?? response.data;
+}
+
+export async function updateAdminChallenge(id: string, data: Partial<AdminChallenge>): Promise<AdminChallenge> {
+  const response = await backendApi.put<any>(`/api/admin/challenges/${id}`, data);
+  return response.data?.challenge ?? response.data;
+}
+
+export async function deleteAdminChallenge(id: string): Promise<void> {
+  await backendApi.delete(`/api/admin/challenges/${id}`);
 }

@@ -60,6 +60,12 @@ export interface Challenge {
   internalPort: number;
 }
 
+export interface AdminChallenge extends Challenge {
+  createdAt?: string;
+  instancesCount?: number;
+  solvedCount?: number;
+}
+
 export interface Instance {
   id: string;
   userId: string;
