@@ -235,7 +235,11 @@ export default function AdminDashboard() {
                               : 'border-cyber-red/40 text-cyber-red hover:bg-cyber-red hover:text-dark-bg'
                           )}
                         >
-                          {killing === inst.id ? '...' : '[ KILL ]'}
+                          {killing === inst.id
+                            ? '...'
+                            : inst.status === 'RUNNING' || inst.status === 'PROVISIONING'
+                            ? '[ KILL ]'
+                            : '[ DELETE ]'}
                         </button>
                       </td>
                     </tr>
