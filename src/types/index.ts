@@ -5,6 +5,7 @@ export type AuthStatus =
   | 'INVALID_CREDENTIALS'
   | 'ACCOUNT_LOCKED'
   | 'ACCOUNT_EXPIRED'
+  | 'UNAUTHORIZED_GROUP'
   | 'SERVICE_ERROR';
 export type InstanceStatus =
   | 'PROVISIONING'

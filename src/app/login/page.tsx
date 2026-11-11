@@ -25,12 +25,14 @@ function StatusBanner({ status, message }: { status: AuthStatus; message: string
     INVALID_CREDENTIALS: 'border-cyber-red/50 bg-cyber-red/10 text-cyber-red',
     ACCOUNT_LOCKED: 'border-cyber-red/50 bg-cyber-red/10 text-cyber-red',
     ACCOUNT_EXPIRED: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-400',
+    UNAUTHORIZED_GROUP: 'border-cyber-red/50 bg-cyber-red/10 text-cyber-red font-semibold',
     SERVICE_ERROR: 'border-orange-500/50 bg-orange-500/10 text-orange-400',
   };
   const icon: Partial<Record<AuthStatus, string>> = {
     INVALID_CREDENTIALS: '✗',
     ACCOUNT_LOCKED: '🔒',
     ACCOUNT_EXPIRED: '⚠',
+    UNAUTHORIZED_GROUP: '⛔',
     SERVICE_ERROR: '⚡',
   };
   const cls = styles[status] ?? 'border-gray-700 bg-gray-800 text-gray-300';
