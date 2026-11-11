@@ -33,6 +33,7 @@ export interface AdminUser {
   updatedAt: string;
   instancesCount?: number;
   solvedCount?: number;
+  totalPoints?: number;
 }
 
 export interface JwtPayload {

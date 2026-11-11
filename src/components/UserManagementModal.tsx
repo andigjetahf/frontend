@@ -5,7 +5,6 @@ import type { AdminUser, UserRole } from '@/types';
 import {
   getAdminUsers,
   createAdminUser,
-  updateAdminUser,
   deleteAdminUser,
 } from '@/lib/backendApi';
 import clsx from 'clsx';
@@ -14,6 +13,21 @@ interface UserManagementModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUserCountChanged?: () => void;
+}
+
+/**
+ * Standardi Shqiptar i formatimit te dates: DD/MM/YYYY HH:mm
+ */
+function formatAlbanianDate(dateStr: string): string {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '—';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
 export default function UserManagementModal({
@@ -27,14 +41,13 @@ export default function UserManagementModal({
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'ADMIN' | 'USER'>('ALL');
 
-  // Modal sub-states
+  // Sub-states
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Form states
+  // Form states for creating a new user
   const [formData, setFormData] = useState({
     username: '',
     displayName: '',
@@ -49,7 +62,7 @@ export default function UserManagementModal({
       const data = await getAdminUsers();
       setUsers(data);
     } catch (err: any) {
-      setError(err?.response?.data?.error || 'Failed to load users');
+      setError(err?.response?.data?.error || 'Dështoi ngarkimi i listës së përdoruesve.');
     } finally {
       setLoading(false);
     }
@@ -86,21 +99,10 @@ export default function UserManagementModal({
     setIsAddOpen(true);
   };
 
-  const openEdit = (user: AdminUser) => {
-    setEditingUser(user);
-    setFormData({
-      username: user.username,
-      displayName: user.displayName,
-      email: user.email,
-      role: user.role,
-    });
-    setFormError(null);
-  };
-
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.username || !formData.displayName || !formData.email) {
-      setFormError('Please fill in all required fields.');
+      setFormError('Ju lutem plotësoni të gjitha fushat e kërkuara.');
       return;
     }
     setActionLoading(true);
@@ -111,24 +113,7 @@ export default function UserManagementModal({
       await fetchUsers();
       onUserCountChanged?.();
     } catch (err: any) {
-      setFormError(err?.response?.data?.error || 'Failed to create user');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingUser) return;
-    setActionLoading(true);
-    setFormError(null);
-    try {
-      await updateAdminUser(editingUser.id, formData);
-      setEditingUser(null);
-      await fetchUsers();
-      onUserCountChanged?.();
-    } catch (err: any) {
-      setFormError(err?.response?.data?.error || 'Failed to update user');
+      setFormError(err?.response?.data?.error || 'Dështoi krijimi i përdoruesit.');
     } finally {
       setActionLoading(false);
     }
@@ -143,7 +128,7 @@ export default function UserManagementModal({
       await fetchUsers();
       onUserCountChanged?.();
     } catch (err: any) {
-      setError(err?.response?.data?.error || 'Failed to delete user');
+      setError(err?.response?.data?.error || 'Dështoi fshirja e përdoruesit.');
     } finally {
       setActionLoading(false);
     }
@@ -153,19 +138,19 @@ export default function UserManagementModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-dark-bg border border-cyber-cyan/40 rounded-xl shadow-[0_0_50px_rgba(0,255,200,0.15)] w-full max-w-5xl my-8 flex flex-col overflow-hidden max-h-[90vh]">
+      <div className="bg-dark-bg border border-cyber-cyan/40 rounded-xl shadow-[0_0_50px_rgba(0,255,200,0.15)] w-full max-w-6xl my-8 flex flex-col overflow-hidden max-h-[90vh]">
         {/* Header */}
         <div className="px-6 py-4 bg-dark-card border-b border-dark-border flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="font-mono text-xs px-2 py-0.5 rounded border border-cyber-cyan/50 text-cyber-cyan bg-cyber-cyan/10">
-              USER MGMT
+              USER DIRECTORY
             </span>
             <div>
               <h2 className="font-mono text-lg font-bold text-gray-100 flex items-center gap-2">
-                ▶ Platform Users Directory
+                ▶ Drejtoriumi i Përdoruesve
               </h2>
               <p className="font-mono text-xs text-gray-400">
-                View, create, edit roles and manage Active Directory & platform user profiles
+                Lista e plotë e përdoruesve, pikët, instancat dhe të dhënat e llogarive
               </p>
             </div>
           </div>
@@ -173,7 +158,7 @@ export default function UserManagementModal({
             onClick={onClose}
             className="font-mono text-xs text-gray-400 hover:text-cyber-red transition-colors px-3 py-1.5 rounded border border-dark-border hover:border-cyber-red/50 uppercase"
           >
-            [ CLOSE ✕ ]
+            [ MBYLL ✕ ]
           </button>
         </div>
 
@@ -182,7 +167,7 @@ export default function UserManagementModal({
           <div className="flex items-center gap-3 w-full md:w-auto flex-1">
             <input
               type="text"
-              placeholder="Filter by username, name, or email..."
+              placeholder="Filtro sipas username, emrit, ose email-it..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="bg-dark-card border border-dark-border rounded px-3 py-2 font-mono text-xs text-gray-200 placeholder-gray-500 w-full max-w-md focus:outline-none focus:border-cyber-cyan transition-colors"
@@ -200,7 +185,7 @@ export default function UserManagementModal({
                       : 'text-gray-400 hover:text-gray-200'
                   )}
                 >
-                  {r}
+                  {r === 'ALL' ? 'TË GJITHË' : r}
                 </button>
               ))}
             </div>
@@ -211,13 +196,13 @@ export default function UserManagementModal({
               onClick={() => fetchUsers()}
               className="font-mono text-xs text-gray-400 hover:text-cyber-cyan transition-colors px-3 py-2 rounded border border-dark-border hover:border-cyber-cyan/40 uppercase"
             >
-              [ ↻ REFRESH ]
+              [ ↻ RIFRESKO ]
             </button>
             <button
               onClick={openAdd}
               className="font-mono text-xs font-bold text-dark-bg bg-cyber-green hover:bg-cyber-green/90 transition-all px-4 py-2 rounded uppercase shadow-[0_0_15px_rgba(0,255,100,0.3)]"
             >
-              + ADD NEW USER
+              + SHTO PËRDORUES
             </button>
           </div>
         </div>
@@ -235,17 +220,17 @@ export default function UserManagementModal({
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <div className="w-8 h-8 border-2 border-cyber-cyan border-t-transparent rounded-full animate-spin" />
               <span className="font-mono text-xs text-cyber-cyan animate-pulse">
-                Fetching users directory...
+                Po ngarkohen të dhënat e përdoruesve...
               </span>
             </div>
           ) : filteredUsers.length === 0 ? (
             <div className="text-center py-16 border border-dashed border-dark-border rounded-lg">
-              <p className="font-mono text-gray-500 text-sm mb-2">No users found matching query.</p>
+              <p className="font-mono text-gray-500 text-sm mb-2">Nuk u gjet asnjë përdorues me këtë filtër.</p>
               <button
                 onClick={openAdd}
                 className="font-mono text-xs text-cyber-cyan hover:underline uppercase"
               >
-                Create a new user now
+                Krijo një përdorues të ri tani
               </button>
             </div>
           ) : (
@@ -253,16 +238,23 @@ export default function UserManagementModal({
               <table className="w-full text-left">
                 <thead className="bg-dark-card border-b border-dark-border">
                   <tr>
-                    {['User', 'Email', 'Role', 'Instances', 'Solves', 'Joined', 'Actions'].map(
-                      (h) => (
-                        <th
-                          key={h}
-                          className="font-mono text-xs text-gray-500 uppercase tracking-widest px-4 py-3"
-                        >
-                          {h}
-                        </th>
-                      )
-                    )}
+                    {[
+                      'Përdoruesi',
+                      'Email',
+                      'Roli',
+                      'Pikët',
+                      'Të Zgjidhura',
+                      'Instanca',
+                      'Data e Regjistrimit',
+                      'Veprime',
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="font-mono text-xs text-gray-500 uppercase tracking-widest px-4 py-3"
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-dark-border">
@@ -288,30 +280,33 @@ export default function UserManagementModal({
                           {u.role}
                         </span>
                       </td>
+                      {/* Pikët */}
+                      <td className="px-4 py-3">
+                        <span className="font-bold text-cyber-yellow text-sm">
+                          {u.totalPoints ?? 0}
+                        </span>
+                        <span className="text-gray-500 text-[10px] ml-1">pts</span>
+                      </td>
+                      {/* Të zgjidhura */}
+                      <td className="px-4 py-3 text-cyber-green">
+                        {u.solvedCount ?? 0}
+                      </td>
+                      {/* Instancat */}
                       <td className="px-4 py-3 text-gray-400">
                         {u.instancesCount ?? 0}
                       </td>
-                      <td className="px-4 py-3 text-gray-400">
-                        {u.solvedCount ?? 0}
+                      {/* Data me formatin Shqiptar: DD/MM/YYYY HH:mm */}
+                      <td className="px-4 py-3 text-gray-300 tabular-nums">
+                        {formatAlbanianDate(u.createdAt)}
                       </td>
-                      <td className="px-4 py-3 text-gray-500">
-                        {new Date(u.createdAt).toLocaleDateString()}
-                      </td>
+                      {/* Veprimet: Vetëm Fshirje */}
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => openEdit(u)}
-                            className="px-2.5 py-1 rounded border border-cyber-cyan/40 text-cyber-cyan hover:bg-cyber-cyan hover:text-dark-bg transition-colors"
-                          >
-                            [ EDIT ]
-                          </button>
-                          <button
-                            onClick={() => setDeletingUser(u)}
-                            className="px-2.5 py-1 rounded border border-cyber-red/40 text-cyber-red hover:bg-cyber-red hover:text-dark-bg transition-colors"
-                          >
-                            [ DELETE ]
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => setDeletingUser(u)}
+                          className="px-2.5 py-1 rounded border border-cyber-red/40 text-cyber-red hover:bg-cyber-red hover:text-dark-bg transition-colors"
+                        >
+                          [ FSHIJ ]
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -323,17 +318,17 @@ export default function UserManagementModal({
 
         {/* Footer */}
         <div className="px-6 py-3 bg-dark-card border-t border-dark-border flex items-center justify-between font-mono text-xs text-gray-500">
-          <span>Showing {filteredUsers.length} of {users.length} total users</span>
-          <span>Role changes take effect upon next login/token refresh</span>
+          <span>Shfaqur: {filteredUsers.length} nga {users.length} përdorues gjithsej</span>
+          <span>Formati i kohës: Standarti Shqiptar (DD/MM/YYYY)</span>
         </div>
       </div>
 
-      {/* ===================== ADD USER MODAL ===================== */}
+      {/* ===================== SHTO PËRDORUES ===================== */}
       {isAddOpen && (
         <div className="fixed inset-0 z-60 bg-black/70 flex items-center justify-center p-4">
           <div className="bg-dark-card border border-cyber-green/40 rounded-lg max-w-md w-full p-6 shadow-2xl">
             <h3 className="font-mono text-base font-bold text-cyber-green mb-4 flex items-center gap-2">
-              ▶ Add New Platform User
+              ▶ Shto Përdorues të Ri në Platformë
             </h3>
             {formError && (
               <div className="mb-4 p-2.5 border border-cyber-red/40 bg-cyber-red/10 rounded font-mono text-cyber-red text-xs">
@@ -348,7 +343,7 @@ export default function UserManagementModal({
                 <input
                   type="text"
                   required
-                  placeholder="e.g. agjeta"
+                  placeholder="p.sh. agjeta"
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-green"
@@ -357,12 +352,12 @@ export default function UserManagementModal({
 
               <div>
                 <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                  Display Name *
+                  Emri i Plotë (Display Name) *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Andi Gjeta"
+                  placeholder="p.sh. Andi Gjeta"
                   value={formData.displayName}
                   onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
                   className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-green"
@@ -376,7 +371,7 @@ export default function UserManagementModal({
                 <input
                   type="email"
                   required
-                  placeholder="e.g. andigjeta@harryfultz.local"
+                  placeholder="p.sh. andigjeta@harryfultz.local"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-green"
@@ -385,15 +380,15 @@ export default function UserManagementModal({
 
               <div>
                 <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                  Role
+                  Roli
                 </label>
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
                   className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-green"
                 >
-                  <option value="USER">USER (Student / Participant)</option>
-                  <option value="ADMIN">ADMIN (Full Control)</option>
+                  <option value="USER">USER (Student / Pjesëmarrës)</option>
+                  <option value="ADMIN">ADMIN (Administrator)</option>
                 </select>
               </div>
 
@@ -403,14 +398,14 @@ export default function UserManagementModal({
                   onClick={() => setIsAddOpen(false)}
                   className="px-3 py-2 border border-dark-border rounded text-gray-400 hover:text-gray-200 uppercase"
                 >
-                  Cancel
+                  Anulo
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
                   className="px-4 py-2 bg-cyber-green text-dark-bg font-bold rounded uppercase hover:bg-cyber-green/90 disabled:opacity-50"
                 >
-                  {actionLoading ? 'Creating...' : 'Create User'}
+                  {actionLoading ? 'Duke krijuar...' : 'Krijo Përdorues'}
                 </button>
               </div>
             </form>
@@ -418,107 +413,21 @@ export default function UserManagementModal({
         </div>
       )}
 
-      {/* ===================== EDIT USER MODAL ===================== */}
-      {editingUser && (
-        <div className="fixed inset-0 z-60 bg-black/70 flex items-center justify-center p-4">
-          <div className="bg-dark-card border border-cyber-cyan/40 rounded-lg max-w-md w-full p-6 shadow-2xl">
-            <h3 className="font-mono text-base font-bold text-cyber-cyan mb-4 flex items-center gap-2">
-              ▶ Edit User: {editingUser.username}
-            </h3>
-            {formError && (
-              <div className="mb-4 p-2.5 border border-cyber-red/40 bg-cyber-red/10 rounded font-mono text-cyber-red text-xs">
-                ⚠ {formError}
-              </div>
-            )}
-            <form onSubmit={handleUpdate} className="space-y-4 font-mono text-xs">
-              <div>
-                <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-cyan"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                  Display Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.displayName}
-                  onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-cyan"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-cyan"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                  Role
-                </label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-                  className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-cyan"
-                >
-                  <option value="USER">USER (Student / Participant)</option>
-                  <option value="ADMIN">ADMIN (Full Control)</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setEditingUser(null)}
-                  className="px-3 py-2 border border-dark-border rounded text-gray-400 hover:text-gray-200 uppercase"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading}
-                  className="px-4 py-2 bg-cyber-cyan text-dark-bg font-bold rounded uppercase hover:bg-cyber-cyan/90 disabled:opacity-50"
-                >
-                  {actionLoading ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ===================== DELETE CONFIRMATION MODAL ===================== */}
+      {/* ===================== KONFIRMIMI I FSHIRJES ===================== */}
       {deletingUser && (
         <div className="fixed inset-0 z-60 bg-black/75 flex items-center justify-center p-4">
           <div className="bg-dark-card border border-cyber-red/50 rounded-lg max-w-sm w-full p-6 shadow-2xl">
             <h3 className="font-mono text-base font-bold text-cyber-red mb-2 flex items-center gap-2">
-              ⚠ Confirm Delete User
+              ⚠ Konfirmo Fshirjen
             </h3>
             <p className="font-mono text-xs text-gray-300 mb-4 leading-relaxed">
-              Are you sure you want to permanently delete user{' '}
+              A jeni i sigurt që dëshironi të fshini përdoruesin{' '}
               <span className="text-white font-bold">"{deletingUser.displayName}"</span> (
               <span className="text-cyber-cyan">@{deletingUser.username}</span>)?
               <br />
               <br />
-              <span className="text-cyber-red font-semibold">Warning:</span> All instances,
-              submissions, and sessions associated with this user will be deleted permanently.
+              <span className="text-cyber-red font-semibold">Kujdes:</span> Të gjitha instancat,
+              përgjigjet e sfidave dhe të dhënat e sesioneve të këtij përdoruesi do të fshihen përfundimisht.
             </p>
 
             <div className="flex items-center justify-end gap-3">
@@ -527,7 +436,7 @@ export default function UserManagementModal({
                 onClick={() => setDeletingUser(null)}
                 className="px-3 py-2 border border-dark-border rounded text-gray-400 hover:text-gray-200 uppercase font-mono text-xs"
               >
-                Cancel
+                Anulo
               </button>
               <button
                 type="button"
@@ -535,7 +444,7 @@ export default function UserManagementModal({
                 onClick={handleDelete}
                 className="px-4 py-2 bg-cyber-red text-dark-bg font-bold rounded uppercase hover:bg-cyber-red/90 disabled:opacity-50 font-mono text-xs"
               >
-                {actionLoading ? 'Deleting...' : 'Delete User'}
+                {actionLoading ? 'Duke fshirë...' : 'Fshij Përdoruesin'}
               </button>
             </div>
           </div>
