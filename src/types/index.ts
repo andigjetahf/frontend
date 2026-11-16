@@ -48,6 +48,9 @@ export interface JwtPayload {
   iat: number;
 }
 
+export type ChallengeRuntime = 'PROXMOX_CT' | 'PROXMOX_VM' | 'DOCKER';
+export type ConnectionType = 'HTTP' | 'SSH' | 'TCP';
+
 export interface Challenge {
   id: string;
   slug: string;
@@ -56,6 +59,14 @@ export interface Challenge {
   category: string;
   difficulty: string;
   points: number;
+  runtimeType?: ChallengeRuntime;
+  proxmoxNode?: string;
+  templateId?: number;
+  cpuCores?: number;
+  ramMB?: number;
+  diskGB?: number;
+  storagePool?: string;
+  connectionType?: ConnectionType;
   dockerImage: string;
   internalPort: number;
 }
@@ -70,6 +81,10 @@ export interface Instance {
   id: string;
   userId: string;
   challengeId: string;
+  vmid?: number | null;
+  proxmoxNode?: string | null;
+  ipAddress?: string | null;
+  connectionUrl?: string | null;
   containerId?: string;
   containerName: string;
   subdomain: string;

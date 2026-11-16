@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { AdminChallenge } from '@/types';
+import type { AdminChallenge, ChallengeRuntime, ConnectionType } from '@/types';
 import {
   getAdminChallenges,
   createAdminChallenge,
@@ -46,17 +46,27 @@ export default function ChallengeManagementModal({
   const [actionLoading, setActionLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Form data
-  const [formData, setFormData] = useState({
+  // Form data supporting Proxmox Hardware specifications & Docker
+  const defaultFormData = {
     name: '',
     slug: '',
     description: '',
     category: 'Web Security',
     difficulty: 'Medium',
     points: 500,
+    runtimeType: 'PROXMOX_CT' as ChallengeRuntime,
+    proxmoxNode: 'pms1',
+    templateId: 101,
+    cpuCores: 1,
+    ramMB: 1024,
+    diskGB: 8,
+    storagePool: 'local-lvm',
+    connectionType: 'HTTP' as ConnectionType,
     dockerImage: 'bkimminich/juice-shop:v16.0.0',
     internalPort: 3000,
-  });
+  };
+
+  const [formData, setFormData] = useState(defaultFormData);
 
   const fetchChallenges = useCallback(async () => {
     setLoading(true);
@@ -88,22 +98,14 @@ export default function ChallengeManagementModal({
         c.name.toLowerCase().includes(q) ||
         c.slug.toLowerCase().includes(q) ||
         c.category.toLowerCase().includes(q) ||
+        (c.proxmoxNode && c.proxmoxNode.toLowerCase().includes(q)) ||
         c.description.toLowerCase().includes(q);
       return matchesDiff && matchesSearch;
     });
   }, [challenges, difficultyFilter, search]);
 
   const openAdd = () => {
-    setFormData({
-      name: '',
-      slug: '',
-      description: '',
-      category: 'Web Security',
-      difficulty: 'Medium',
-      points: 500,
-      dockerImage: 'bkimminich/juice-shop:v16.0.0',
-      internalPort: 3000,
-    });
+    setFormData(defaultFormData);
     setFormError(null);
     setIsAddOpen(true);
   };
@@ -117,8 +119,16 @@ export default function ChallengeManagementModal({
       category: c.category,
       difficulty: c.difficulty,
       points: c.points,
-      dockerImage: c.dockerImage,
-      internalPort: c.internalPort,
+      runtimeType: (c.runtimeType as ChallengeRuntime) || 'PROXMOX_CT',
+      proxmoxNode: c.proxmoxNode || 'pms1',
+      templateId: c.templateId || 101,
+      cpuCores: c.cpuCores || 1,
+      ramMB: c.ramMB || 1024,
+      diskGB: c.diskGB || 8,
+      storagePool: c.storagePool || 'local-lvm',
+      connectionType: (c.connectionType as ConnectionType) || 'HTTP',
+      dockerImage: c.dockerImage || 'bkimminich/juice-shop:v16.0.0',
+      internalPort: c.internalPort || 3000,
     });
     setFormError(null);
   };
@@ -137,7 +147,7 @@ export default function ChallengeManagementModal({
       await fetchChallenges();
       onChallengeCountChanged?.();
     } catch (err: any) {
-      setFormError(err?.response?.data?.error || 'Dështoi krijimi i sfidës.');
+      setFormError(err?.response?.data?.details || err?.response?.data?.error || 'Dështoi krijimi i sfidës.');
     } finally {
       setActionLoading(false);
     }
@@ -154,7 +164,7 @@ export default function ChallengeManagementModal({
       await fetchChallenges();
       onChallengeCountChanged?.();
     } catch (err: any) {
-      setFormError(err?.response?.data?.error || 'Dështoi përditësimi i sfidës.');
+      setFormError(err?.response?.data?.details || err?.response?.data?.error || 'Dështoi përditësimi i sfidës.');
     } finally {
       setActionLoading(false);
     }
@@ -169,7 +179,7 @@ export default function ChallengeManagementModal({
       await fetchChallenges();
       onChallengeCountChanged?.();
     } catch (err: any) {
-      setError(err?.response?.data?.error || 'Dështoi fshirja e sfidës.');
+      setError(err?.response?.data?.details || err?.response?.data?.error || 'Dështoi fshirja e sfidës.');
     } finally {
       setActionLoading(false);
     }
@@ -179,19 +189,19 @@ export default function ChallengeManagementModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-dark-bg border border-cyber-yellow/40 rounded-xl shadow-[0_0_50px_rgba(255,180,0,0.15)] w-full max-w-6xl my-8 flex flex-col overflow-hidden max-h-[90vh]">
+      <div className="bg-dark-bg border border-cyber-yellow/40 rounded-xl shadow-[0_0_50px_rgba(255,180,0,0.15)] w-full max-w-7xl my-8 flex flex-col overflow-hidden max-h-[92vh]">
         {/* Header */}
         <div className="px-6 py-4 bg-dark-card border-b border-dark-border flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="font-mono text-xs px-2 py-0.5 rounded border border-cyber-yellow/50 text-cyber-yellow bg-cyber-yellow/10">
-              CHALLENGES DIRECTORY
+              PROXMOX & CTF ORCHESTRATION
             </span>
             <div>
               <h2 className="font-mono text-lg font-bold text-gray-100 flex items-center gap-2">
-                ▶ Drejtoriumi i Sfidave CTF
+                ▶ Drejtoriumi i Sfidave & Hardware Specs (Proxmox VE)
               </h2>
               <p className="font-mono text-xs text-gray-400">
-                Menaxho sfidat, imazhet Docker, vështirësitë dhe pikët e platformës
+                Përcakto nga merret në Proxmox (pms1/pms2/pms3), specifikimet hardware (CPU/RAM/Disk), dhe orkestrimin në ChallengeHoste
               </p>
             </div>
           </div>
@@ -208,7 +218,7 @@ export default function ChallengeManagementModal({
           <div className="flex items-center gap-3 w-full md:w-auto flex-1">
             <input
               type="text"
-              placeholder="Filtro sipas emrit, kategorisë ose përshkrimit..."
+              placeholder="Filtro sipas emrit, nyjes Proxmox, shabllonit ose kategorisë..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="bg-dark-card border border-dark-border rounded px-3 py-2 font-mono text-xs text-gray-200 placeholder-gray-500 w-full max-w-md focus:outline-none focus:border-cyber-yellow transition-colors"
@@ -261,7 +271,7 @@ export default function ChallengeManagementModal({
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <div className="w-8 h-8 border-2 border-cyber-yellow border-t-transparent rounded-full animate-spin" />
               <span className="font-mono text-xs text-cyber-yellow animate-pulse">
-                Po ngarkohen sfidat...
+                Po ngarkohen sfidat dhe konfigurimet Proxmox...
               </span>
             </div>
           ) : filteredChallenges.length === 0 ? (
@@ -271,7 +281,7 @@ export default function ChallengeManagementModal({
                 onClick={openAdd}
                 className="font-mono text-xs text-cyber-yellow hover:underline uppercase"
               >
-                Krijo një sfidë të re tani
+                Krijo një sfidë të re Proxmox tani
               </button>
             </div>
           ) : (
@@ -281,13 +291,13 @@ export default function ChallengeManagementModal({
                   <tr>
                     {[
                       'Sfida',
+                      'Lloji & Nyja Proxmox',
+                      'Specifikimet Hardware',
+                      'Shablloni Burimor',
                       'Kategoria',
-                      'Vështirësia',
                       'Pikët',
-                      'Docker Image',
-                      'Porta',
+                      'Lidhja',
                       'Zgjidhje',
-                      'Data e Krijimit',
                       'Veprime',
                     ].map((h) => (
                       <th
@@ -305,47 +315,93 @@ export default function ChallengeManagementModal({
                       key={c.id}
                       className="hover:bg-dark-hover transition-colors font-mono text-xs"
                     >
+                      {/* Emri & Slug */}
                       <td className="px-4 py-3">
                         <div className="font-bold text-gray-200">{c.name}</div>
                         <div className="text-gray-500 text-[11px]">slug: {c.slug}</div>
                       </td>
+
+                      {/* Lloji & Nyja Proxmox */}
                       <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 rounded text-[10px] uppercase border border-dark-border text-gray-300 bg-dark-bg">
-                          {c.category}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            className={clsx(
+                              'px-2 py-0.5 rounded text-[10px] font-bold uppercase border',
+                              c.runtimeType === 'PROXMOX_VM'
+                                ? 'border-purple-400/50 text-purple-300 bg-purple-950/20'
+                                : c.runtimeType === 'DOCKER'
+                                ? 'border-blue-400/50 text-blue-300 bg-blue-950/20'
+                                : 'border-cyber-cyan/50 text-cyber-cyan bg-cyber-cyan/10'
+                            )}
+                          >
+                            {c.runtimeType === 'PROXMOX_VM' ? 'VM' : c.runtimeType === 'DOCKER' ? 'Docker' : 'LXC (CT)'}
+                          </span>
+                          <span className="text-gray-400 text-[11px] font-semibold">
+                            @{c.proxmoxNode || 'pms1'}
+                          </span>
+                        </div>
                       </td>
+
+                      {/* Specifikimet Hardware */}
                       <td className="px-4 py-3">
+                        <div className="text-gray-200 font-semibold">
+                          {c.cpuCores || 1} vCPU · {c.ramMB || 1024} MB
+                        </div>
+                        <div className="text-gray-500 text-[11px]">
+                          Disk: {c.diskGB || 8} GB ({c.storagePool || 'local-lvm'})
+                        </div>
+                      </td>
+
+                      {/* Shablloni Burimor */}
+                      <td className="px-4 py-3 text-cyber-yellow">
+                        {c.runtimeType === 'DOCKER' ? (
+                          <span className="text-gray-400 text-[11px] truncate max-w-[120px] block" title={c.dockerImage}>
+                            {c.dockerImage}
+                          </span>
+                        ) : (
+                          <span>ID: {c.templateId || 101}</span>
+                        )}
+                      </td>
+
+                      {/* Kategoria & Veshtiresia */}
+                      <td className="px-4 py-3">
+                        <div className="text-gray-300">{c.category}</div>
                         <span
                           className={clsx(
-                            'px-2 py-0.5 rounded text-[10px] font-bold uppercase border',
+                            'text-[10px] font-bold uppercase',
                             c.difficulty.toLowerCase() === 'easy'
-                              ? 'border-cyber-green/50 text-cyber-green bg-cyber-green/10'
+                              ? 'text-cyber-green'
                               : c.difficulty.toLowerCase() === 'hard'
-                              ? 'border-cyber-red/50 text-cyber-red bg-cyber-red/10'
-                              : 'border-cyber-yellow/50 text-cyber-yellow bg-cyber-yellow/10'
+                              ? 'text-cyber-red'
+                              : 'text-cyber-yellow'
                           )}
                         >
                           {c.difficulty}
                         </span>
                       </td>
+
+                      {/* Pikët */}
                       <td className="px-4 py-3">
                         <span className="font-bold text-cyber-yellow text-sm">
                           {c.points}
                         </span>
                         <span className="text-gray-500 text-[10px] ml-1">pts</span>
                       </td>
-                      <td className="px-4 py-3 text-cyber-cyan max-w-[200px] truncate" title={c.dockerImage}>
-                        {c.dockerImage}
+
+                      {/* Lidhja */}
+                      <td className="px-4 py-3 text-gray-300">
+                        <span className="px-1.5 py-0.5 rounded border border-dark-border text-[10px] uppercase bg-dark-bg mr-1 text-gray-400">
+                          {c.connectionType || 'HTTP'}
+                        </span>
+                        <span className="text-gray-500">:{c.internalPort}</span>
                       </td>
-                      <td className="px-4 py-3 text-gray-400">
-                        :{c.internalPort}
-                      </td>
-                      <td className="px-4 py-3 text-cyber-green">
+
+                      {/* Zgjidhje */}
+                      <td className="px-4 py-3 text-cyber-green font-bold">
                         {c.solvedCount ?? 0}
                       </td>
-                      <td className="px-4 py-3 text-gray-300 tabular-nums">
-                        {formatAlbanianDate(c.createdAt)}
-                      </td>
+
+                      {/* Veprime */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <button
@@ -373,120 +429,208 @@ export default function ChallengeManagementModal({
         {/* Footer */}
         <div className="px-6 py-3 bg-dark-card border-t border-dark-border flex items-center justify-between font-mono text-xs text-gray-500">
           <span>Shfaqur: {filteredChallenges.length} nga {challenges.length} sfida gjithsej</span>
-          <span>Formati i kohës: Standarti Shqiptar (DD/MM/YYYY)</span>
+          <span>Orkestrimi: ChallengeHoste (192.168.200.15) ➜ Proxmox Datacenter (CHF1)</span>
         </div>
       </div>
 
-      {/* ===================== SHTO SFIDË ===================== */}
+      {/* ===================== SHTO SFIDË (ADD MODAL) ===================== */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-60 bg-black/70 flex items-center justify-center p-4">
-          <div className="bg-dark-card border border-cyber-yellow/40 rounded-lg max-w-lg w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <h3 className="font-mono text-base font-bold text-cyber-yellow mb-4 flex items-center gap-2">
-              ▶ Shto Sfidë të Re CTF
+        <div className="fixed inset-0 z-60 bg-black/75 flex items-center justify-center p-4">
+          <div className="bg-dark-card border border-cyber-yellow/40 rounded-lg max-w-2xl w-full p-6 shadow-2xl overflow-y-auto max-h-[92vh]">
+            <h3 className="font-mono text-base font-bold text-cyber-yellow mb-3 flex items-center gap-2">
+              ▶ Shto Sfidë të Re & Specifiko Hardware në Proxmox
             </h3>
             {formError && (
               <div className="mb-4 p-2.5 border border-cyber-red/40 bg-cyber-red/10 rounded font-mono text-cyber-red text-xs">
                 ⚠ {formError}
               </div>
             )}
-            <form onSubmit={handleCreate} className="space-y-3 font-mono text-xs">
-              <div>
-                <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                  Emri i Sfidës *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="p.sh. OWASP Juice Shop"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                  Slug (Opsionale - automatike)
-                </label>
-                <input
-                  type="text"
-                  placeholder="p.sh. juice-shop"
-                  value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                  Përshkrimi *
-                </label>
-                <textarea
-                  required
-                  rows={2}
-                  placeholder="Përshkruaj qëllimin e sfidës..."
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                />
-              </div>
-
+            <form onSubmit={handleCreate} className="space-y-4 font-mono text-xs">
+              {/* Informacioni Baze */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                    Kategoria
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                  >
-                    <option value="Web Security">Web Security</option>
-                    <option value="Network">Network</option>
-                    <option value="Cryptography">Cryptography</option>
-                    <option value="Reverse Engineering">Reverse Engineering</option>
-                    <option value="Forensics">Forensics</option>
-                    <option value="Privilege Escalation">Privilege Escalation</option>
-                    <option value="Misc">Misc</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                    Vështirësia
-                  </label>
-                  <select
-                    value={formData.difficulty}
-                    onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
-                    className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                  >
-                    <option value="Easy">Easy</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Hard">Hard</option>
-                    <option value="Insane">Insane</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                    Pikët *
+                    Emri i Sfidës *
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     required
-                    min={10}
-                    max={5000}
-                    value={formData.points}
-                    onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value, 10) || 500 })}
+                    placeholder="p.sh. OWASP Juice Shop Lab"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
                   />
                 </div>
 
                 <div>
                   <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                    Porta e Brendshme *
+                    Slug (Opsionale)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="p.sh. juice-shop-lab"
+                    value={formData.slug}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                    className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                  Përshkrimi i Sfidës *
+                </label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="Përshkruaj laboratorin, objektivat dhe flamurin..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                />
+              </div>
+
+              {/* SEKSIONI 1: PROXMOX PROVISIONING & AMBIENTI */}
+              <div className="border border-cyber-cyan/30 rounded p-3 bg-cyber-cyan/5 space-y-3">
+                <span className="font-bold text-cyber-cyan text-xs uppercase tracking-wider block">
+                  ⚙️ Nga do të merret në Proxmox & Lloji i Ambientit
+                </span>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      Lloji i Ambientit *
+                    </label>
+                    <select
+                      value={formData.runtimeType}
+                      onChange={(e) => setFormData({ ...formData, runtimeType: e.target.value as ChallengeRuntime })}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-cyan font-bold focus:outline-none focus:border-cyber-cyan"
+                    >
+                      <option value="PROXMOX_CT">Proxmox LXC Container (CT)</option>
+                      <option value="PROXMOX_VM">Proxmox QEMU Machine (VM)</option>
+                      <option value="DOCKER">Docker Container</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      Nyja Proxmox (Target Node) *
+                    </label>
+                    <select
+                      value={formData.proxmoxNode}
+                      onChange={(e) => setFormData({ ...formData, proxmoxNode: e.target.value })}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                    >
+                      <option value="pms1">pms1 (Hosts 101-114)</option>
+                      <option value="pms2">pms2 (Platform Core & 119)</option>
+                      <option value="pms3">pms3 (Wazuh SIEM 100)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      Shablloni Burimor (Template ID) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min={100}
+                      max={9999}
+                      value={formData.templateId}
+                      onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
+                      placeholder="p.sh. 101"
+                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
+                    />
+                  </div>
+                </div>
+
+                {/* SPECIFIKIMET HARDWARE */}
+                <div className="grid grid-cols-4 gap-3 pt-1">
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      CPU Cores
+                    </label>
+                    <select
+                      value={formData.cpuCores}
+                      onChange={(e) => setFormData({ ...formData, cpuCores: parseInt(e.target.value, 10) || 1 })}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-2.5 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                    >
+                      <option value={1}>1 Core</option>
+                      <option value={2}>2 Cores</option>
+                      <option value={4}>4 Cores</option>
+                      <option value={8}>8 Cores</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      RAM (MB)
+                    </label>
+                    <select
+                      value={formData.ramMB}
+                      onChange={(e) => setFormData({ ...formData, ramMB: parseInt(e.target.value, 10) || 1024 })}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-2.5 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                    >
+                      <option value={512}>512 MB</option>
+                      <option value={1024}>1024 MB (1GB)</option>
+                      <option value={2048}>2048 MB (2GB)</option>
+                      <option value={4096}>4096 MB (4GB)</option>
+                      <option value={8192}>8192 MB (8GB)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      Disk (GB)
+                    </label>
+                    <input
+                      type="number"
+                      min={4}
+                      max={200}
+                      value={formData.diskGB}
+                      onChange={(e) => setFormData({ ...formData, diskGB: parseInt(e.target.value, 10) || 8 })}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-2.5 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      Storage Pool
+                    </label>
+                    <select
+                      value={formData.storagePool}
+                      onChange={(e) => setFormData({ ...formData, storagePool: e.target.value })}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-2.5 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                    >
+                      <option value="local-lvm">local-lvm</option>
+                      <option value="local">local</option>
+                      <option value="TrueNas (pms1)">TrueNas (pms1)</option>
+                      <option value="TrueNas (pms2)">TrueNas (pms2)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* SEKSIONI 2: LIDHJA DHE PARAMETRAT CTF */}
+              <div className="grid grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                    Lloji i Lidhjes
+                  </label>
+                  <select
+                    value={formData.connectionType}
+                    onChange={(e) => setFormData({ ...formData, connectionType: e.target.value as ConnectionType })}
+                    className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                  >
+                    <option value="HTTP">HTTP (Web)</option>
+                    <option value="SSH">SSH (Terminal)</option>
+                    <option value="TCP">TCP Port</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                    Porta e Shërbimit *
                   </label>
                   <input
                     type="number"
@@ -498,23 +642,59 @@ export default function ChallengeManagementModal({
                     className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                    Kategoria
+                  </label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                  >
+                    <option value="Web Security">Web Security</option>
+                    <option value="Network">Network</option>
+                    <option value="Privilege Escalation">Privilege Escalation</option>
+                    <option value="Reverse Engineering">Reverse Engineering</option>
+                    <option value="Forensics">Forensics</option>
+                    <option value="Cryptography">Cryptography</option>
+                    <option value="Misc">Misc</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                    Pikët *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={10}
+                    max={5000}
+                    value={formData.points}
+                    onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value, 10) || 500 })}
+                    className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                  Docker Image *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="p.sh. bkimminich/juice-shop:v16.0.0"
-                  value={formData.dockerImage}
-                  onChange={(e) => setFormData({ ...formData, dockerImage: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                />
-              </div>
+              {formData.runtimeType === 'DOCKER' && (
+                <div>
+                  <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                    Docker Image *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="p.sh. bkimminich/juice-shop:v16.0.0"
+                    value={formData.dockerImage}
+                    onChange={(e) => setFormData({ ...formData, dockerImage: e.target.value })}
+                    className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                  />
+                </div>
+              )}
 
-              <div className="flex items-center justify-end gap-3 pt-3">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-dark-border">
                 <button
                   type="button"
                   onClick={() => setIsAddOpen(false)}
@@ -525,9 +705,9 @@ export default function ChallengeManagementModal({
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="px-4 py-2 bg-cyber-yellow text-dark-bg font-bold rounded uppercase hover:bg-cyber-yellow/90 disabled:opacity-50"
+                  className="px-5 py-2 bg-cyber-yellow text-dark-bg font-bold rounded uppercase hover:bg-cyber-yellow/90 disabled:opacity-50"
                 >
-                  {actionLoading ? 'Duke krijuar...' : 'Krijo Sfidë'}
+                  {actionLoading ? 'Duke regjistruar...' : 'Krijo Sfidë në Proxmox'}
                 </button>
               </div>
             </form>
@@ -535,42 +715,44 @@ export default function ChallengeManagementModal({
         </div>
       )}
 
-      {/* ===================== EDIT SFIDË ===================== */}
+      {/* ===================== EDIT SFIDË (EDIT MODAL) ===================== */}
       {editingChallenge && (
-        <div className="fixed inset-0 z-60 bg-black/70 flex items-center justify-center p-4">
-          <div className="bg-dark-card border border-cyber-yellow/40 rounded-lg max-w-lg w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <h3 className="font-mono text-base font-bold text-cyber-yellow mb-4 flex items-center gap-2">
-              ▶ Modifiko Sfidën: {editingChallenge.name}
+        <div className="fixed inset-0 z-60 bg-black/75 flex items-center justify-center p-4">
+          <div className="bg-dark-card border border-cyber-yellow/40 rounded-lg max-w-2xl w-full p-6 shadow-2xl overflow-y-auto max-h-[92vh]">
+            <h3 className="font-mono text-base font-bold text-cyber-yellow mb-3 flex items-center gap-2">
+              ▶ Modifiko Sfidën & Parametrat Proxmox: {editingChallenge.name}
             </h3>
             {formError && (
               <div className="mb-4 p-2.5 border border-cyber-red/40 bg-cyber-red/10 rounded font-mono text-cyber-red text-xs">
                 ⚠ {formError}
               </div>
             )}
-            <form onSubmit={handleUpdate} className="space-y-3 font-mono text-xs">
-              <div>
-                <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                  Emri i Sfidës *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                />
-              </div>
+            <form onSubmit={handleUpdate} className="space-y-4 font-mono text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                    Emri i Sfidës *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                  Slug
-                </label>
-                <input
-                  type="text"
-                  value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                />
+                <div>
+                  <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                    Slug
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.slug}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                    className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                  />
+                </div>
               </div>
 
               <div>
@@ -586,62 +768,144 @@ export default function ChallengeManagementModal({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                    Kategoria
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                  >
-                    <option value="Web Security">Web Security</option>
-                    <option value="Network">Network</option>
-                    <option value="Cryptography">Cryptography</option>
-                    <option value="Reverse Engineering">Reverse Engineering</option>
-                    <option value="Forensics">Forensics</option>
-                    <option value="Privilege Escalation">Privilege Escalation</option>
-                    <option value="Misc">Misc</option>
-                  </select>
+              {/* SEKSIONI HARDWARE PROXMOX */}
+              <div className="border border-cyber-cyan/30 rounded p-3 bg-cyber-cyan/5 space-y-3">
+                <span className="font-bold text-cyber-cyan text-xs uppercase tracking-wider block">
+                  ⚙️ Konfigurimi Proxmox & Hardware Specs
+                </span>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      Lloji i Ambientit *
+                    </label>
+                    <select
+                      value={formData.runtimeType}
+                      onChange={(e) => setFormData({ ...formData, runtimeType: e.target.value as ChallengeRuntime })}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-cyan font-bold focus:outline-none focus:border-cyber-cyan"
+                    >
+                      <option value="PROXMOX_CT">Proxmox LXC Container (CT)</option>
+                      <option value="PROXMOX_VM">Proxmox QEMU Machine (VM)</option>
+                      <option value="DOCKER">Docker Container</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      Nyja Proxmox *
+                    </label>
+                    <select
+                      value={formData.proxmoxNode}
+                      onChange={(e) => setFormData({ ...formData, proxmoxNode: e.target.value })}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                    >
+                      <option value="pms1">pms1 (Hosts 101-114)</option>
+                      <option value="pms2">pms2 (Platform Core & 119)</option>
+                      <option value="pms3">pms3 (Wazuh SIEM 100)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      Template ID *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min={100}
+                      max={9999}
+                      value={formData.templateId}
+                      onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                    Vështirësia
-                  </label>
-                  <select
-                    value={formData.difficulty}
-                    onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
-                    className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                  >
-                    <option value="Easy">Easy</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Hard">Hard</option>
-                    <option value="Insane">Insane</option>
-                  </select>
+                <div className="grid grid-cols-4 gap-3 pt-1">
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      CPU Cores
+                    </label>
+                    <select
+                      value={formData.cpuCores}
+                      onChange={(e) => setFormData({ ...formData, cpuCores: parseInt(e.target.value, 10) || 1 })}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-2.5 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                    >
+                      <option value={1}>1 Core</option>
+                      <option value={2}>2 Cores</option>
+                      <option value={4}>4 Cores</option>
+                      <option value={8}>8 Cores</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      RAM (MB)
+                    </label>
+                    <select
+                      value={formData.ramMB}
+                      onChange={(e) => setFormData({ ...formData, ramMB: parseInt(e.target.value, 10) || 1024 })}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-2.5 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                    >
+                      <option value={512}>512 MB</option>
+                      <option value={1024}>1024 MB (1GB)</option>
+                      <option value={2048}>2048 MB (2GB)</option>
+                      <option value={4096}>4096 MB (4GB)</option>
+                      <option value={8192}>8192 MB (8GB)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      Disk (GB)
+                    </label>
+                    <input
+                      type="number"
+                      min={4}
+                      max={200}
+                      value={formData.diskGB}
+                      onChange={(e) => setFormData({ ...formData, diskGB: parseInt(e.target.value, 10) || 8 })}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-2.5 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      Storage Pool
+                    </label>
+                    <select
+                      value={formData.storagePool}
+                      onChange={(e) => setFormData({ ...formData, storagePool: e.target.value })}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-2.5 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                    >
+                      <option value="local-lvm">local-lvm</option>
+                      <option value="local">local</option>
+                      <option value="TrueNas (pms1)">TrueNas (pms1)</option>
+                      <option value="TrueNas (pms2)">TrueNas (pms2)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                    Pikët *
+                    Lidhja
                   </label>
-                  <input
-                    type="number"
-                    required
-                    min={10}
-                    max={5000}
-                    value={formData.points}
-                    onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value, 10) || 500 })}
+                  <select
+                    value={formData.connectionType}
+                    onChange={(e) => setFormData({ ...formData, connectionType: e.target.value as ConnectionType })}
                     className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                  />
+                  >
+                    <option value="HTTP">HTTP (Web)</option>
+                    <option value="SSH">SSH (Terminal)</option>
+                    <option value="TCP">TCP Port</option>
+                  </select>
                 </div>
 
                 <div>
                   <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                    Porta e Brendshme *
+                    Porta *
                   </label>
                   <input
                     type="number"
@@ -653,22 +917,24 @@ export default function ChallengeManagementModal({
                     className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                    Pikët *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={10}
+                    max={5000}
+                    value={formData.points}
+                    onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value, 10) || 500 })}
+                    className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                  Docker Image *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.dockerImage}
-                  onChange={(e) => setFormData({ ...formData, dockerImage: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-dark-border">
                 <button
                   type="button"
                   onClick={() => setEditingChallenge(null)}
@@ -679,7 +945,7 @@ export default function ChallengeManagementModal({
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="px-4 py-2 bg-cyber-yellow text-dark-bg font-bold rounded uppercase hover:bg-cyber-yellow/90 disabled:opacity-50"
+                  className="px-5 py-2 bg-cyber-yellow text-dark-bg font-bold rounded uppercase hover:bg-cyber-yellow/90 disabled:opacity-50"
                 >
                   {actionLoading ? 'Duke ruajtur...' : 'Ruaj Ndryshimet'}
                 </button>
@@ -689,7 +955,7 @@ export default function ChallengeManagementModal({
         </div>
       )}
 
-      {/* ===================== KONFIRMIMI I FSHIRJES ===================== */}
+      {/* ===================== DELETE CONFIRMATION ===================== */}
       {deletingChallenge && (
         <div className="fixed inset-0 z-60 bg-black/75 flex items-center justify-center p-4">
           <div className="bg-dark-card border border-cyber-red/50 rounded-lg max-w-sm w-full p-6 shadow-2xl">
@@ -701,8 +967,8 @@ export default function ChallengeManagementModal({
               <span className="text-white font-bold">"{deletingChallenge.name}"</span>?
               <br />
               <br />
-              <span className="text-cyber-red font-semibold">Kujdes:</span> Të gjitha instancat
-              aktive dhe të gjitha zgjidhjet/pikët e regjistruara për këtë sfidë do të fshihen.
+              <span className="text-cyber-red font-semibold">Kujdes:</span> ChallengeHoste do të fshijë
+              gjithashtu çdo instancë të hapur të kësaj sfide nga Proxmox VE dhe nga baza e të dhënave.
             </p>
 
             <div className="flex items-center justify-end gap-3">

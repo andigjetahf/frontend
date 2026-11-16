@@ -62,20 +62,57 @@ export default function InstanceCard({
         )}
       </div>
 
-      {/* Host URL */}
-      {isRunning && instance.hostUrl && (
-        <div className="bg-dark-bg border border-dark-border rounded p-3">
-          <p className="font-mono text-xs text-gray-500 mb-1 uppercase tracking-widest">
-            Target URL
-          </p>
-          <a
-            href={instance.hostUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-mono text-cyber-cyan text-sm hover:underline break-all"
-          >
-            {instance.hostUrl}
-          </a>
+      {/* Host URL / Connection */}
+      {isRunning && (instance.hostUrl || instance.connectionUrl) && (
+        <div className="bg-dark-bg border border-dark-border rounded p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="font-mono text-xs text-gray-500 uppercase tracking-widest">
+              {instance.connectionUrl?.startsWith('ssh') ? 'Lidhja me Terminal (SSH)' : 'Target URL / Lidhja'}
+            </p>
+            {instance.vmid && (
+              <span className="font-mono text-[10px] text-cyber-yellow border border-cyber-yellow/40 px-2 py-0.5 rounded bg-cyber-yellow/10">
+                PROXMOX [{instance.proxmoxNode || 'pms1'}] · VMID: {instance.vmid}
+              </span>
+            )}
+          </div>
+          {instance.connectionUrl?.startsWith('ssh') ? (
+            <div className="bg-black/60 p-2 rounded border border-cyber-cyan/30 flex items-center justify-between">
+              <code className="font-mono text-cyber-green text-xs select-all">
+                {instance.connectionUrl}
+              </code>
+              <button
+                onClick={() => navigator.clipboard.writeText(instance.connectionUrl || '')}
+                className="font-mono text-[10px] text-gray-400 hover:text-cyber-green px-2 py-0.5 rounded border border-dark-border"
+              >
+                [ COPY ]
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <a
+                href={instance.hostUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-cyber-cyan text-sm hover:underline break-all flex-1"
+              >
+                {instance.hostUrl}
+              </a>
+              <a
+                href={instance.hostUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-xs text-dark-bg bg-cyber-cyan font-bold px-3 py-1 rounded uppercase hover:bg-cyber-cyan/90 transition-all whitespace-nowrap"
+              >
+                HAP LAB ↗
+              </a>
+            </div>
+          )}
+          {instance.ipAddress && (
+            <p className="font-mono text-[11px] text-gray-400">
+              IP e Dedikuar: <span className="text-white font-bold">{instance.ipAddress}</span>
+              {instance.internalPort && <span className="text-gray-500"> (Porta: {instance.internalPort})</span>}
+            </p>
+          )}
         </div>
       )}
 
