@@ -85,6 +85,7 @@ export interface Instance {
   proxmoxNode?: string | null;
   ipAddress?: string | null;
   connectionUrl?: string | null;
+  internalPort?: number | null;
   containerId?: string;
   containerName: string;
   subdomain: string;
