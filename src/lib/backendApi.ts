@@ -167,3 +167,17 @@ export async function updateAdminChallenge(id: string, data: Partial<AdminChalle
 export async function deleteAdminChallenge(id: string): Promise<void> {
   await backendApi.delete(`/api/admin/challenges/${id}`);
 }
+
+export async function getProxmoxNodes(): Promise<{ id: string; name: string; status: string }[]> {
+  try {
+    const response = await backendApi.get<any>('/api/admin/proxmox/nodes');
+    if (Array.isArray(response.data)) return response.data;
+    return [];
+  } catch {
+    return [
+      { id: 'pms1', name: 'pms1 (online)', status: 'online' },
+      { id: 'pms2', name: 'pms2 (online)', status: 'online' },
+      { id: 'pms3', name: 'pms3 (online)', status: 'online' },
+    ];
+  }
+}

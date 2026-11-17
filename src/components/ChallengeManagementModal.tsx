@@ -7,6 +7,7 @@ import {
   createAdminChallenge,
   updateAdminChallenge,
   deleteAdminChallenge,
+  getProxmoxNodes,
 } from '@/lib/backendApi';
 import clsx from 'clsx';
 
@@ -45,6 +46,11 @@ export default function ChallengeManagementModal({
   const [deletingChallenge, setDeletingChallenge] = useState<AdminChallenge | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [liveNodes, setLiveNodes] = useState<{ id: string; name: string }[]>([
+    { id: 'pms1', name: 'pms1 (online)' },
+    { id: 'pms2', name: 'pms2 (online)' },
+    { id: 'pms3', name: 'pms3 (online)' },
+  ]);
 
   // Form data supporting Proxmox Hardware specifications & Docker
   const defaultFormData = {
@@ -60,7 +66,7 @@ export default function ChallengeManagementModal({
     cpuCores: 1,
     ramMB: 1024,
     diskGB: 8,
-    storagePool: 'local-lvm',
+    storagePool: 'TrueNas',
     connectionType: 'HTTP' as ConnectionType,
     dockerImage: 'bkimminich/juice-shop:v16.0.0',
     internalPort: 3000,
@@ -72,8 +78,14 @@ export default function ChallengeManagementModal({
     setLoading(true);
     setError(null);
     try {
-      const data = await getAdminChallenges();
-      setChallenges(data);
+      const [challengesData, nodesData] = await Promise.all([
+        getAdminChallenges(),
+        getProxmoxNodes().catch(() => []),
+      ]);
+      setChallenges(challengesData);
+      if (nodesData && nodesData.length > 0) {
+        setLiveNodes(nodesData);
+      }
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Dështoi ngarkimi i listës së sfidave.');
     } finally {
@@ -521,9 +533,11 @@ export default function ChallengeManagementModal({
                       onChange={(e) => setFormData({ ...formData, proxmoxNode: e.target.value })}
                       className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
                     >
-                      <option value="pms1">pms1 (Hosts 101-114)</option>
-                      <option value="pms2">pms2 (Platform Core & 119)</option>
-                      <option value="pms3">pms3 (Wazuh SIEM 100)</option>
+                      {liveNodes.map((n) => (
+                        <option key={n.id} value={n.id}>
+                          {n.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -602,10 +616,9 @@ export default function ChallengeManagementModal({
                       onChange={(e) => setFormData({ ...formData, storagePool: e.target.value })}
                       className="w-full bg-dark-bg border border-dark-border rounded px-2.5 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
                     >
+                      <option value="TrueNas">TrueNas (Default)</option>
                       <option value="local-lvm">local-lvm</option>
                       <option value="local">local</option>
-                      <option value="TrueNas (pms1)">TrueNas (pms1)</option>
-                      <option value="TrueNas (pms2)">TrueNas (pms2)</option>
                     </select>
                   </div>
                 </div>
@@ -799,9 +812,11 @@ export default function ChallengeManagementModal({
                       onChange={(e) => setFormData({ ...formData, proxmoxNode: e.target.value })}
                       className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
                     >
-                      <option value="pms1">pms1 (Hosts 101-114)</option>
-                      <option value="pms2">pms2 (Platform Core & 119)</option>
-                      <option value="pms3">pms3 (Wazuh SIEM 100)</option>
+                      {liveNodes.map((n) => (
+                        <option key={n.id} value={n.id}>
+                          {n.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -878,10 +893,9 @@ export default function ChallengeManagementModal({
                       onChange={(e) => setFormData({ ...formData, storagePool: e.target.value })}
                       className="w-full bg-dark-bg border border-dark-border rounded px-2.5 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
                     >
+                      <option value="TrueNas">TrueNas (Default)</option>
                       <option value="local-lvm">local-lvm</option>
                       <option value="local">local</option>
-                      <option value="TrueNas (pms1)">TrueNas (pms1)</option>
-                      <option value="TrueNas (pms2)">TrueNas (pms2)</option>
                     </select>
                   </div>
                 </div>
