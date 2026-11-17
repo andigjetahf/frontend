@@ -55,6 +55,21 @@ export default function ChallengeManagementModal({
   ]);
   const [liveTemplates, setLiveTemplates] = useState<any[]>([]);
   const [liveStorages, setLiveStorages] = useState<string[]>(['TrueNas', 'local-lvm', 'local']);
+  const [templateFilterNode, setTemplateFilterNode] = useState<string>('ALL');
+  const [templateFilterType, setTemplateFilterType] = useState<string>('ALL');
+  const [templateSearch, setTemplateSearch] = useState<string>('');
+
+  const filteredLiveTemplates = useMemo(() => {
+    return liveTemplates.filter((t) => {
+      const matchNode = templateFilterNode === 'ALL' || t.node === templateFilterNode;
+      const matchType = templateFilterType === 'ALL' || t.type === templateFilterType;
+      const matchSearch =
+        !templateSearch ||
+        String(t.vmid).includes(templateSearch) ||
+        (t.name && t.name.toLowerCase().includes(templateSearch.toLowerCase()));
+      return matchNode && matchType && matchSearch;
+    });
+  }, [liveTemplates, templateFilterNode, templateFilterType, templateSearch]);
 
   // Form data supporting Proxmox Hardware specifications & Docker
   const defaultFormData = {
@@ -553,48 +568,105 @@ export default function ChallengeManagementModal({
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                      Shablloni Burimor (Template ID) *
-                    </label>
-                    {liveTemplates.length > 0 ? (
+                  {/* SELEKTIMI DHE FILTRIMI I TEMPLATE-VE NGA PROXMOX */}
+                  <div className="col-span-3 bg-black/40 border border-cyber-yellow/30 rounded p-2.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-cyber-yellow text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                        <span>⚡ Shablloni Burimor nga Proxmox (Live Templates & Machines)</span>
+                        <span className="text-[10px] text-gray-400 font-normal">
+                          ({filteredLiveTemplates.length} gjetur)
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={fetchChallenges}
+                        className="text-[10px] text-cyber-cyan hover:underline font-mono"
+                      >
+                        [ Rifresko nga Proxmox ↻ ]
+                      </button>
+                    </div>
+
+                    {/* Filtra të shpejtë për Shabllonet */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Filtro sipas ID ose emrit (p.sh. 101, juice)..."
+                        value={templateSearch}
+                        onChange={(e) => setTemplateSearch(e.target.value)}
+                        className="bg-dark-bg border border-dark-border rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-cyber-yellow"
+                      />
+                      <select
+                        value={templateFilterNode}
+                        onChange={(e) => setTemplateFilterNode(e.target.value)}
+                        className="bg-dark-bg border border-dark-border rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                      >
+                        <option value="ALL">Të gjitha Nyjet (All Nodes)</option>
+                        {liveNodes.map((n) => (
+                          <option key={n.id} value={n.id}>Nyja {n.id}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={templateFilterType}
+                        onChange={(e) => setTemplateFilterType(e.target.value)}
+                        className="bg-dark-bg border border-dark-border rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                      >
+                        <option value="ALL">Të gjitha Llojet (LXC & VM)</option>
+                        <option value="PROXMOX_CT">Vetëm LXC Containers</option>
+                        <option value="PROXMOX_VM">Vetëm QEMU VMs</option>
+                      </select>
+                    </div>
+
+                    {/* Zgjedhja e Shabllonit */}
+                    {filteredLiveTemplates.length > 0 ? (
                       <select
                         value={formData.templateId}
                         onChange={(e) => {
                           const val = parseInt(e.target.value, 10);
                           const selectedTpl = liveTemplates.find((t) => t.vmid === val);
-                          setFormData({
-                            ...formData,
-                            templateId: val,
-                            ...(selectedTpl ? {
+                          if (selectedTpl) {
+                            setFormData({
+                              ...formData,
+                              templateId: val,
                               runtimeType: selectedTpl.type,
                               proxmoxNode: selectedTpl.node || formData.proxmoxNode,
                               cpuCores: selectedTpl.maxcpu || formData.cpuCores,
                               ramMB: selectedTpl.maxmemMB || formData.ramMB,
                               diskGB: selectedTpl.maxdiskGB || formData.diskGB,
-                            } : {})
-                          });
+                            });
+                          } else {
+                            setFormData({ ...formData, templateId: val });
+                          }
                         }}
-                        className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
+                        className="w-full bg-dark-bg border border-cyber-yellow/60 rounded px-3 py-2 text-cyber-yellow font-bold text-sm focus:outline-none focus:border-cyber-yellow shadow-inner"
                       >
-                        {liveTemplates.map((tpl) => (
+                        {filteredLiveTemplates.map((tpl) => (
                           <option key={tpl.vmid} value={tpl.vmid}>
-                            {tpl.vmid} - {tpl.name} ({tpl.type === 'PROXMOX_CT' ? 'LXC' : 'VM'} @ {tpl.node})
+                            [ID: {tpl.vmid}] {tpl.name} | {tpl.type === 'PROXMOX_CT' ? 'LXC' : 'VM'} | Nyja: {tpl.node} | {tpl.maxcpu} Core / {tpl.maxmemMB}MB RAM / {tpl.maxdiskGB}GB Disk
                           </option>
                         ))}
                       </select>
                     ) : (
-                      <input
-                        type="number"
-                        required
-                        min={100}
-                        max={9999}
-                        value={formData.templateId}
-                        onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
-                        placeholder="p.sh. 101"
-                        className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          required
+                          min={100}
+                          max={9999}
+                          value={formData.templateId}
+                          onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
+                          placeholder="Shkruaj VMID me dorë (p.sh. 101)"
+                          className="flex-1 bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow text-sm"
+                        />
+                        <span className="text-[11px] text-gray-500 font-mono">
+                          (Nuk ka shabllon që përputhet me filtrin)
+                        </span>
+                      </div>
                     )}
+
+                    <div className="text-[11px] text-gray-400 flex items-center justify-between px-1">
+                      <span>✓ Kur zgjidhni një shabllon, CPU, RAM, Disk dhe Nyja sinkronizohen automatikisht.</span>
+                      <span className="text-cyber-green font-mono">Live Proxmox Sync</span>
+                    </div>
                   </div>
                 </div>
 
