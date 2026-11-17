@@ -55,21 +55,31 @@ export default function ChallengeManagementModal({
   ]);
   const [liveTemplates, setLiveTemplates] = useState<any[]>([]);
   const [liveStorages, setLiveStorages] = useState<string[]>(['TrueNas', 'local-lvm', 'local']);
-  const [templateFilterNode, setTemplateFilterNode] = useState<string>('ALL');
-  const [templateFilterType, setTemplateFilterType] = useState<string>('ALL');
   const [templateSearch, setTemplateSearch] = useState<string>('');
 
+  // Sinkronizimi i dyanshëm midis formës kryesore dhe listës së shablloneve të Proxmox
   const filteredLiveTemplates = useMemo(() => {
     return liveTemplates.filter((t) => {
-      const matchNode = templateFilterNode === 'ALL' || t.node === templateFilterNode;
-      const matchType = templateFilterType === 'ALL' || t.type === templateFilterType;
+      // Nëse në formë është zgjedhur nyje specifike, shfaq vetëm ato të asaj nyjeje
+      const matchNode =
+        !formData.proxmoxNode ||
+        formData.proxmoxNode === 'ALL' ||
+        t.node === formData.proxmoxNode;
+
+      // Nëse është zgjedhur PROXMOX_CT ose PROXMOX_VM, filtro automatikisht
+      const matchType =
+        formData.runtimeType === 'DOCKER' ||
+        !formData.runtimeType ||
+        t.type === formData.runtimeType;
+
       const matchSearch =
         !templateSearch ||
         String(t.vmid).includes(templateSearch) ||
         (t.name && t.name.toLowerCase().includes(templateSearch.toLowerCase()));
+
       return matchNode && matchType && matchSearch;
     });
-  }, [liveTemplates, templateFilterNode, templateFilterType, templateSearch]);
+  }, [liveTemplates, formData.proxmoxNode, formData.runtimeType, templateSearch]);
 
   // Form data supporting Proxmox Hardware specifications & Docker
   const defaultFormData = {
