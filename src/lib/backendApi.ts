@@ -181,3 +181,23 @@ export async function getProxmoxNodes(): Promise<{ id: string; name: string; sta
     ];
   }
 }
+
+export async function getProxmoxTemplates(): Promise<any[]> {
+  try {
+    const response = await backendApi.get<any>('/api/admin/proxmox/templates');
+    if (Array.isArray(response.data)) return response.data;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getProxmoxStorages(): Promise<{ storage: string; type?: string; shared?: boolean }[]> {
+  try {
+    const response = await backendApi.get<any>('/api/admin/proxmox/storages');
+    if (Array.isArray(response.data)) return response.data;
+    return [];
+  } catch {
+    return [{ storage: 'TrueNas' }, { storage: 'local-lvm' }, { storage: 'local' }];
+  }
+}

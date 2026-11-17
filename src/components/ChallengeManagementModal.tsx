@@ -8,6 +8,8 @@ import {
   updateAdminChallenge,
   deleteAdminChallenge,
   getProxmoxNodes,
+  getProxmoxTemplates,
+  getProxmoxStorages,
 } from '@/lib/backendApi';
 import clsx from 'clsx';
 
@@ -51,6 +53,8 @@ export default function ChallengeManagementModal({
     { id: 'pms2', name: 'pms2 (online)' },
     { id: 'pms3', name: 'pms3 (online)' },
   ]);
+  const [liveTemplates, setLiveTemplates] = useState<any[]>([]);
+  const [liveStorages, setLiveStorages] = useState<string[]>(['TrueNas', 'local-lvm', 'local']);
 
   // Form data supporting Proxmox Hardware specifications & Docker
   const defaultFormData = {
@@ -78,13 +82,21 @@ export default function ChallengeManagementModal({
     setLoading(true);
     setError(null);
     try {
-      const [challengesData, nodesData] = await Promise.all([
+      const [challengesData, nodesData, templatesData, storagesData] = await Promise.all([
         getAdminChallenges(),
         getProxmoxNodes().catch(() => []),
+        getProxmoxTemplates().catch(() => []),
+        getProxmoxStorages().catch(() => []),
       ]);
       setChallenges(challengesData);
       if (nodesData && nodesData.length > 0) {
         setLiveNodes(nodesData);
+      }
+      if (templatesData && templatesData.length > 0) {
+        setLiveTemplates(templatesData);
+      }
+      if (storagesData && storagesData.length > 0) {
+        setLiveStorages(storagesData.map((s: any) => s.storage));
       }
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Dështoi ngarkimi i listës së sfidave.');
@@ -545,16 +557,44 @@ export default function ChallengeManagementModal({
                     <label className="block text-gray-400 uppercase tracking-widest mb-1">
                       Shablloni Burimor (Template ID) *
                     </label>
-                    <input
-                      type="number"
-                      required
-                      min={100}
-                      max={9999}
-                      value={formData.templateId}
-                      onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
-                      placeholder="p.sh. 101"
-                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
-                    />
+                    {liveTemplates.length > 0 ? (
+                      <select
+                        value={formData.templateId}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          const selectedTpl = liveTemplates.find((t) => t.vmid === val);
+                          setFormData({
+                            ...formData,
+                            templateId: val,
+                            ...(selectedTpl ? {
+                              runtimeType: selectedTpl.type,
+                              proxmoxNode: selectedTpl.node || formData.proxmoxNode,
+                              cpuCores: selectedTpl.maxcpu || formData.cpuCores,
+                              ramMB: selectedTpl.maxmemMB || formData.ramMB,
+                              diskGB: selectedTpl.maxdiskGB || formData.diskGB,
+                            } : {})
+                          });
+                        }}
+                        className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
+                      >
+                        {liveTemplates.map((tpl) => (
+                          <option key={tpl.vmid} value={tpl.vmid}>
+                            {tpl.vmid} - {tpl.name} ({tpl.type === 'PROXMOX_CT' ? 'LXC' : 'VM'} @ {tpl.node})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="number"
+                        required
+                        min={100}
+                        max={9999}
+                        value={formData.templateId}
+                        onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
+                        placeholder="p.sh. 101"
+                        className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
+                      />
+                    )}
                   </div>
                 </div>
 
