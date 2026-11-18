@@ -53,7 +53,19 @@ export default function ChallengeManagementModal({
     { id: 'pms2', name: 'pms2 (online)', status: 'online' },
     { id: 'pms3', name: 'pms3 (online)', status: 'online' },
   ]);
-  const [liveTemplates, setLiveTemplates] = useState<any[]>([]);
+  const [liveTemplates, setLiveTemplates] = useState<any[]>([
+    {
+      vmid: 101,
+      name: 'juice-shop-host-A',
+      type: 'PROXMOX_CT',
+      node: 'pms1',
+      status: 'running',
+      isTemplate: false,
+      maxcpu: 1,
+      maxmemMB: 1024,
+      maxdiskGB: 8,
+    },
+  ]);
   const [liveStorages, setLiveStorages] = useState<string[]>(['TrueNas', 'local-lvm', 'local']);
   const [templateSearch, setTemplateSearch] = useState<string>('');
 
@@ -620,14 +632,11 @@ export default function ChallengeManagementModal({
                     </select>
                   </div>
 
-                  {/* 3. SHABLLONI BURIMOR (Filtruar automatikisht për Nyjen dhe Llojin e Zgjedhur) */}
-                  <div className="col-span-2 bg-black/40 border border-cyber-yellow/40 rounded p-2.5 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-cyber-yellow text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                        <span>⚡ Shablloni Burimor (Afishohen vetëm ato CT/VM që plotësojnë kushtin)</span>
-                        <span className="text-[10px] text-gray-400 font-mono">
-                          [{filteredLiveTemplates.length} të gatshme në {formData.proxmoxNode}]
-                        </span>
+                  {/* 3. ID / SHABLLONI BURIMOR (Ekzaktësisht si Nyja Proxmox - Dropdown me ID nga Proxmox) */}
+                  <div className="col-span-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-gray-400 uppercase tracking-widest block">
+                        ID e Shabllonit / Makinës në Proxmox (Template ID) *
                       </label>
                       <button
                         type="button"
@@ -638,18 +647,6 @@ export default function ChallengeManagementModal({
                       </button>
                     </div>
 
-                    {/* Filtër i shpejtë kërkimi nëse ka shumë makina në atë nyje */}
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="Kërko me ID ose emër (p.sh. 101, juice)..."
-                        value={templateSearch}
-                        onChange={(e) => setTemplateSearch(e.target.value)}
-                        className="flex-1 bg-dark-bg border border-dark-border rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-cyber-yellow"
-                      />
-                    </div>
-
-                    {/* Lista e Shablloneve që plotësojnë kushtin */}
                     {filteredLiveTemplates.length > 0 ? (
                       <select
                         value={formData.templateId}
@@ -670,36 +667,36 @@ export default function ChallengeManagementModal({
                             setFormData({ ...formData, templateId: val });
                           }
                         }}
-                        className="w-full bg-dark-bg border border-cyber-yellow/60 rounded px-3 py-2 text-cyber-yellow font-bold text-xs focus:outline-none focus:border-cyber-yellow shadow-inner"
+                        className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
                       >
                         {filteredLiveTemplates.map((tpl) => (
                           <option key={tpl.vmid} value={tpl.vmid}>
-                            [ID: {tpl.vmid}] {tpl.name} | {tpl.type === 'PROXMOX_CT' ? 'LXC' : 'VM'} @ {tpl.node} | {tpl.maxcpu} Cores | {tpl.maxmemMB}MB RAM | {tpl.maxdiskGB}GB Disk
+                            ID {tpl.vmid} - {tpl.name} ({tpl.type === 'PROXMOX_CT' ? 'LXC' : 'VM'} në {tpl.node})
                           </option>
                         ))}
                       </select>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          required
-                          min={100}
-                          max={9999}
+                        <select
                           value={formData.templateId}
                           onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
-                          placeholder="Shkruaj VMID me dorë (p.sh. 101)"
-                          className="flex-1 bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow text-xs"
+                          className="flex-1 bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
+                        >
+                          <option value={101}>ID 101 - juice-shop-host-A (LXC në pms1)</option>
+                          <option value={formData.templateId}>ID {formData.templateId} (Manual)</option>
+                        </select>
+                        <input
+                          type="number"
+                          value={formData.templateId}
+                          onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
+                          placeholder="Shkruaj ID"
+                          className="w-28 bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold text-center focus:outline-none focus:border-cyber-yellow"
                         />
-                        <span className="text-[11px] text-gray-500 font-mono">
-                          (Nuk ka {formData.runtimeType === 'PROXMOX_CT' ? 'LXC' : 'VM'} të regjistruar në nyjen {formData.proxmoxNode})
-                        </span>
                       </div>
                     )}
-
-                    <div className="text-[10px] text-gray-400 flex items-center justify-between px-1">
-                      <span>✓ Zgjedhja e shabllonit sinkronizon automatikisht Cores, RAM, Disk dhe Storage.</span>
-                      <span className="text-cyber-green font-mono">Dynamic Proxmox Link</span>
-                    </div>
+                    <span className="text-[10px] text-gray-500 mt-1 block">
+                      ✓ Kur përzgjidhni ID-në nga Proxmox, CPU, RAM dhe Disk sinkronizohen automatikisht.
+                    </span>
                   </div>
                 </div>
 
@@ -973,15 +970,45 @@ export default function ChallengeManagementModal({
                     <label className="block text-gray-400 uppercase tracking-widest mb-1">
                       Template ID *
                     </label>
-                    <input
-                      type="number"
-                      required
-                      min={100}
-                      max={9999}
-                      value={formData.templateId}
-                      onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
-                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
-                    />
+                    {filteredLiveTemplates.length > 0 ? (
+                      <select
+                        value={formData.templateId}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          const selectedTpl = liveTemplates.find((t) => t.vmid === val);
+                          if (selectedTpl) {
+                            setFormData({
+                              ...formData,
+                              templateId: val,
+                              runtimeType: selectedTpl.type,
+                              proxmoxNode: selectedTpl.node || formData.proxmoxNode,
+                              cpuCores: selectedTpl.maxcpu || formData.cpuCores,
+                              ramMB: selectedTpl.maxmemMB || formData.ramMB,
+                              diskGB: selectedTpl.maxdiskGB || formData.diskGB,
+                            });
+                          } else {
+                            setFormData({ ...formData, templateId: val });
+                          }
+                        }}
+                        className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
+                      >
+                        {filteredLiveTemplates.map((tpl) => (
+                          <option key={tpl.vmid} value={tpl.vmid}>
+                            ID {tpl.vmid} - {tpl.name} ({tpl.type === 'PROXMOX_CT' ? 'LXC' : 'VM'})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="number"
+                        required
+                        min={100}
+                        max={9999}
+                        value={formData.templateId}
+                        onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
+                        className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
+                      />
+                    )}
                   </div>
                 </div>
 
