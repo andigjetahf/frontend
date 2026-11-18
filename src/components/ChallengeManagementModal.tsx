@@ -48,7 +48,7 @@ export default function ChallengeManagementModal({
   const [deletingChallenge, setDeletingChallenge] = useState<AdminChallenge | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [liveNodes, setLiveNodes] = useState<ProxmoxNode>([]);
+  const [liveNodes, setLiveNodes] = useState<ProxmoxNode[]>([
     { id: 'pms1', name: 'pms1 (online)', status: 'online' },
     { id: 'pms2', name: 'pms2 (online)', status: 'online' },
     { id: 'pms3', name: 'pms3 (online)', status: 'online' },
