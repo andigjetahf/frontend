@@ -125,3 +125,9 @@ export interface AuthResponse {
   user?: User;
   mustChangePasswordToken?: string;
 }
+
+export interface ProxmoxNode {
+  id: string;
+  name: string;
+  status?: 'online' | 'offline';
+}
