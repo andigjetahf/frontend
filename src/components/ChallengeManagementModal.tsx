@@ -127,7 +127,7 @@ export default function ChallengeManagementModal({
         const typedNodes: ProxmoxNode[] = nodesData.map((n: any) => ({
           id: n.id,
           name: n.name,
-          status: n.status === 'online' ? 'online' : n.status === 'offline' ? 'offline' : undefined,
+          status: n.status === 'online' ? 'online' : n.status === 'offline' ? 'offline' : undefined as any,
         }));
         setLiveNodes(typedNodes);
       }
