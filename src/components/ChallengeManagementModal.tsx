@@ -48,10 +48,10 @@ export default function ChallengeManagementModal({
   const [deletingChallenge, setDeletingChallenge] = useState<AdminChallenge | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [liveNodes, setLiveNodes] = useState<{ id: string; name: string }[]>([
-    { id: 'pms1', name: 'pms1 (online)' },
-    { id: 'pms2', name: 'pms2 (online)' },
-    { id: 'pms3', name: 'pms3 (online)' },
+  const [liveNodes, setLiveNodes] = useState<{ id: string; name: string; status?: string }[]>([
+    { id: 'pms1', name: 'pms1 (online)', status: 'online' },
+    { id: 'pms2', name: 'pms2 (online)', status: 'online' },
+    { id: 'pms3', name: 'pms3 (online)', status: 'online' },
   ]);
   const [liveTemplates, setLiveTemplates] = useState<any[]>([]);
   const [liveStorages, setLiveStorages] = useState<string[]>(['TrueNas', 'local-lvm', 'local']);
@@ -957,11 +957,15 @@ export default function ChallengeManagementModal({
                       onChange={(e) => setFormData({ ...formData, proxmoxNode: e.target.value })}
                       className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
                     >
-                      {liveNodes.map((n) => (
-                        <option key={n.id} value={n.id}>
-                          {n.name}
-                        </option>
-                      ))}
+                      {availableNodesForRuntime.length > 0 ? (
+                        availableNodesForRuntime.map((n) => (
+                          <option key={n.id} value={n.id}>
+                            {n.name}
+                          </option>
+                        ))
+                      ) : (
+                        <option value={formData.proxmoxNode}>{formData.proxmoxNode}</option>
+                      )}
                     </select>
                   </div>
 
