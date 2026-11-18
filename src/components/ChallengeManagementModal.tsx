@@ -56,6 +56,8 @@ export default function ChallengeManagementModal({
   const [liveTemplates, setLiveTemplates] = useState<any[]>([]);
   const [liveStorages, setLiveStorages] = useState<string[]>(['TrueNas', 'local-lvm', 'local']);
   const [templateSearch, setTemplateSearch] = useState<string>('');
+  const [templateFilterNode, setTemplateFilterNode] = useState<string>('ALL');
+  const [templateFilterType, setTemplateFilterType] = useState<string>('ALL');
 
   // Form data supporting Proxmox Hardware specifications & Docker
   const defaultFormData = {
@@ -82,17 +84,19 @@ export default function ChallengeManagementModal({
   // Sinkronizimi i dyanshëm midis formës kryesore dhe listës së shablloneve të Proxmox
   const filteredLiveTemplates = useMemo(() => {
     return liveTemplates.filter((t) => {
-      // Nëse në formë është zgjedhur nyje specifike, shfaq vetëm ato të asaj nyjeje
+      // Filtri sipas nyjes (ose nga dropdown i formës ose nga filtri lokal)
+      const effectiveNode = templateFilterNode !== 'ALL' ? templateFilterNode : formData.proxmoxNode;
       const matchNode =
-        !formData.proxmoxNode ||
-        formData.proxmoxNode === 'ALL' ||
-        t.node === formData.proxmoxNode;
+        !effectiveNode ||
+        effectiveNode === 'ALL' ||
+        t.node === effectiveNode;
 
-      // Nëse është zgjedhur PROXMOX_CT ose PROXMOX_VM, filtro automatikisht
+      // Filtri sipas llojit (ose nga dropdown i formës ose nga filtri lokal)
+      const effectiveType = templateFilterType !== 'ALL' ? templateFilterType : formData.runtimeType;
       const matchType =
-        formData.runtimeType === 'DOCKER' ||
-        !formData.runtimeType ||
-        t.type === formData.runtimeType;
+        effectiveType === 'DOCKER' ||
+        !effectiveType ||
+        t.type === effectiveType;
 
       const matchSearch =
         !templateSearch ||
@@ -101,7 +105,7 @@ export default function ChallengeManagementModal({
 
       return matchNode && matchType && matchSearch;
     });
-  }, [liveTemplates, formData.proxmoxNode, formData.runtimeType, templateSearch]);
+  }, [liveTemplates, formData.proxmoxNode, formData.runtimeType, templateFilterNode, templateFilterType, templateSearch]);
 
   const fetchChallenges = useCallback(async () => {
     setLoading(true);
