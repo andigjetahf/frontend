@@ -56,8 +56,6 @@ export default function ChallengeManagementModal({
   const [liveTemplates, setLiveTemplates] = useState<any[]>([]);
   const [liveStorages, setLiveStorages] = useState<string[]>(['TrueNas', 'local-lvm', 'local']);
   const [templateSearch, setTemplateSearch] = useState<string>('');
-  const [templateFilterNode, setTemplateFilterNode] = useState<string>('ALL');
-  const [templateFilterType, setTemplateFilterType] = useState<string>('ALL');
 
   // Form data supporting Proxmox Hardware specifications & Docker
   const defaultFormData = {
@@ -81,31 +79,50 @@ export default function ChallengeManagementModal({
 
   const [formData, setFormData] = useState(defaultFormData);
 
-  // Sinkronizimi i dyanshëm midis formës kryesore dhe listës së shablloneve të Proxmox
+  // 1. Nyjet që janë ONLINE dhe që mbajnë realisht ambientin e zgjedhur (PROXMOX_CT / PROXMOX_VM)
+  const availableNodesForRuntime = useMemo(() => {
+    return liveNodes.filter((n) => {
+      // Vetëm nyjet online
+      const isOnline = n.status === 'online' || n.name?.toLowerCase().includes('online');
+      if (!isOnline) return false;
+
+      // Nëse është DOCKER, lejohen të gjitha nyjet online (ose pms2/pms1)
+      if (formData.runtimeType === 'DOCKER') return true;
+
+      // Nëse është PROXMOX_CT ose PROXMOX_VM, shfaq vetëm nyjet që kanë templates/makina të atij lloji
+      const hasMatchingResource = liveTemplates.some(
+        (t) => t.node === n.id && (t.type === formData.runtimeType || formData.runtimeType === undefined)
+      );
+
+      // Nëse ende s'janë ngarkuar templates nga API, mbaj nyjet online si fallback
+      return liveTemplates.length === 0 || hasMatchingResource;
+    });
+  }, [liveNodes, liveTemplates, formData.runtimeType]);
+
+  // 2. Shabllonet burimore (CT, VM, Template) që plotësojnë ekzaktësisht kushtin e Nyjes dhe Llojit të zgjedhur
   const filteredLiveTemplates = useMemo(() => {
     return liveTemplates.filter((t) => {
-      // Filtri sipas nyjes (ose nga dropdown i formës ose nga filtri lokal)
-      const effectiveNode = templateFilterNode !== 'ALL' ? templateFilterNode : formData.proxmoxNode;
-      const matchNode =
-        !effectiveNode ||
-        effectiveNode === 'ALL' ||
-        t.node === effectiveNode;
-
-      // Filtri sipas llojit (ose nga dropdown i formës ose nga filtri lokal)
-      const effectiveType = templateFilterType !== 'ALL' ? templateFilterType : formData.runtimeType;
+      // Kushti 1: Duhet të përkasë me Llojin e Ambientit (LXC Container vs QEMU VM)
       const matchType =
-        effectiveType === 'DOCKER' ||
-        !effectiveType ||
-        t.type === effectiveType;
+        formData.runtimeType === 'DOCKER' ||
+        !formData.runtimeType ||
+        t.type === formData.runtimeType;
 
+      // Kushti 2: Duhet të ndodhet në Nyjen Proxmox të zgjedhur
+      const matchNode =
+        !formData.proxmoxNode ||
+        formData.proxmoxNode === 'ALL' ||
+        t.node === formData.proxmoxNode;
+
+      // Kushti 3: Kërkimi opsional me tekst (ID ose emër)
       const matchSearch =
         !templateSearch ||
         String(t.vmid).includes(templateSearch) ||
         (t.name && t.name.toLowerCase().includes(templateSearch.toLowerCase()));
 
-      return matchNode && matchType && matchSearch;
+      return matchType && matchNode && matchSearch;
     });
-  }, [liveTemplates, formData.proxmoxNode, formData.runtimeType, templateFilterNode, templateFilterType, templateSearch]);
+  }, [liveTemplates, formData.runtimeType, formData.proxmoxNode, templateSearch]);
 
   const fetchChallenges = useCallback(async () => {
     setLoading(true);
@@ -549,22 +566,39 @@ export default function ChallengeManagementModal({
                   ⚙️ Nga do të merret në Proxmox & Lloji i Ambientit
                 </span>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  {/* 1. Lloji i Ambientit */}
                   <div>
                     <label className="block text-gray-400 uppercase tracking-widest mb-1">
                       Lloji i Ambientit *
                     </label>
                     <select
                       value={formData.runtimeType}
-                      onChange={(e) => setFormData({ ...formData, runtimeType: e.target.value as ChallengeRuntime })}
+                      onChange={(e) => {
+                        const newType = e.target.value as ChallengeRuntime;
+                        // Kur ndryshohet tipi, përzgjidh nyjen e parë të disponueshme që e mban këtë ambient
+                        const matchingNodes = liveNodes.filter((n) => {
+                          if (n.status !== 'online' && !n.name?.toLowerCase().includes('online')) return false;
+                          if (newType === 'DOCKER') return true;
+                          return liveTemplates.some((t) => t.node === n.id && t.type === newType);
+                        });
+                        const nextNode = matchingNodes.length > 0 ? matchingNodes[0].id : formData.proxmoxNode;
+
+                        setFormData({
+                          ...formData,
+                          runtimeType: newType,
+                          proxmoxNode: nextNode,
+                        });
+                      }}
                       className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-cyan font-bold focus:outline-none focus:border-cyber-cyan"
                     >
                       <option value="PROXMOX_CT">Proxmox LXC Container (CT)</option>
                       <option value="PROXMOX_VM">Proxmox QEMU Machine (VM)</option>
-                      <option value="DOCKER">Docker Container</option>
+                      <option value="DOCKER">Docker Container (Lokal në VM5)</option>
                     </select>
                   </div>
 
+                  {/* 2. Nyja Proxmox (Filtruar vetëm për ato ONLINE dhe që e mbajnë këtë ambient) */}
                   <div>
                     <label className="block text-gray-400 uppercase tracking-widest mb-1">
                       Nyja Proxmox (Target Node) *
@@ -572,23 +606,27 @@ export default function ChallengeManagementModal({
                     <select
                       value={formData.proxmoxNode}
                       onChange={(e) => setFormData({ ...formData, proxmoxNode: e.target.value })}
-                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
+                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow font-bold"
                     >
-                      {liveNodes.map((n) => (
-                        <option key={n.id} value={n.id}>
-                          {n.name}
-                        </option>
-                      ))}
+                      {availableNodesForRuntime.length > 0 ? (
+                        availableNodesForRuntime.map((n) => (
+                          <option key={n.id} value={n.id}>
+                            {n.name}
+                          </option>
+                        ))
+                      ) : (
+                        <option value={formData.proxmoxNode}>{formData.proxmoxNode} (Nuk ka nyje online)</option>
+                      )}
                     </select>
                   </div>
 
-                  {/* SELEKTIMI DHE FILTRIMI I TEMPLATE-VE NGA PROXMOX */}
-                  <div className="col-span-3 bg-black/40 border border-cyber-yellow/30 rounded p-2.5 space-y-2">
+                  {/* 3. SHABLLONI BURIMOR (Filtruar automatikisht për Nyjen dhe Llojin e Zgjedhur) */}
+                  <div className="col-span-2 bg-black/40 border border-cyber-yellow/40 rounded p-2.5 space-y-2">
                     <div className="flex items-center justify-between">
                       <label className="text-cyber-yellow text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                        <span>⚡ Shablloni Burimor nga Proxmox (Live Templates & Machines)</span>
-                        <span className="text-[10px] text-gray-400 font-normal">
-                          ({filteredLiveTemplates.length} gjetur)
+                        <span>⚡ Shablloni Burimor (Afishohen vetëm ato CT/VM që plotësojnë kushtin)</span>
+                        <span className="text-[10px] text-gray-400 font-mono">
+                          [{filteredLiveTemplates.length} të gatshme në {formData.proxmoxNode}]
                         </span>
                       </label>
                       <button
@@ -600,37 +638,18 @@ export default function ChallengeManagementModal({
                       </button>
                     </div>
 
-                    {/* Filtra të shpejtë për Shabllonet */}
-                    <div className="grid grid-cols-3 gap-2">
+                    {/* Filtër i shpejtë kërkimi nëse ka shumë makina në atë nyje */}
+                    <div className="flex items-center gap-2">
                       <input
                         type="text"
-                        placeholder="Filtro sipas ID ose emrit (p.sh. 101, juice)..."
+                        placeholder="Kërko me ID ose emër (p.sh. 101, juice)..."
                         value={templateSearch}
                         onChange={(e) => setTemplateSearch(e.target.value)}
-                        className="bg-dark-bg border border-dark-border rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-cyber-yellow"
+                        className="flex-1 bg-dark-bg border border-dark-border rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-cyber-yellow"
                       />
-                      <select
-                        value={templateFilterNode}
-                        onChange={(e) => setTemplateFilterNode(e.target.value)}
-                        className="bg-dark-bg border border-dark-border rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                      >
-                        <option value="ALL">Të gjitha Nyjet (All Nodes)</option>
-                        {liveNodes.map((n) => (
-                          <option key={n.id} value={n.id}>Nyja {n.id}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={templateFilterType}
-                        onChange={(e) => setTemplateFilterType(e.target.value)}
-                        className="bg-dark-bg border border-dark-border rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                      >
-                        <option value="ALL">Të gjitha Llojet (LXC & VM)</option>
-                        <option value="PROXMOX_CT">Vetëm LXC Containers</option>
-                        <option value="PROXMOX_VM">Vetëm QEMU VMs</option>
-                      </select>
                     </div>
 
-                    {/* Zgjedhja e Shabllonit */}
+                    {/* Lista e Shablloneve që plotësojnë kushtin */}
                     {filteredLiveTemplates.length > 0 ? (
                       <select
                         value={formData.templateId}
@@ -651,11 +670,11 @@ export default function ChallengeManagementModal({
                             setFormData({ ...formData, templateId: val });
                           }
                         }}
-                        className="w-full bg-dark-bg border border-cyber-yellow/60 rounded px-3 py-2 text-cyber-yellow font-bold text-sm focus:outline-none focus:border-cyber-yellow shadow-inner"
+                        className="w-full bg-dark-bg border border-cyber-yellow/60 rounded px-3 py-2 text-cyber-yellow font-bold text-xs focus:outline-none focus:border-cyber-yellow shadow-inner"
                       >
                         {filteredLiveTemplates.map((tpl) => (
                           <option key={tpl.vmid} value={tpl.vmid}>
-                            [ID: {tpl.vmid}] {tpl.name} | {tpl.type === 'PROXMOX_CT' ? 'LXC' : 'VM'} | Nyja: {tpl.node} | {tpl.maxcpu} Core / {tpl.maxmemMB}MB RAM / {tpl.maxdiskGB}GB Disk
+                            [ID: {tpl.vmid}] {tpl.name} | {tpl.type === 'PROXMOX_CT' ? 'LXC' : 'VM'} @ {tpl.node} | {tpl.maxcpu} Cores | {tpl.maxmemMB}MB RAM | {tpl.maxdiskGB}GB Disk
                           </option>
                         ))}
                       </select>
@@ -669,17 +688,17 @@ export default function ChallengeManagementModal({
                           value={formData.templateId}
                           onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
                           placeholder="Shkruaj VMID me dorë (p.sh. 101)"
-                          className="flex-1 bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow text-sm"
+                          className="flex-1 bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow text-xs"
                         />
                         <span className="text-[11px] text-gray-500 font-mono">
-                          (Nuk ka shabllon që përputhet me filtrin)
+                          (Nuk ka {formData.runtimeType === 'PROXMOX_CT' ? 'LXC' : 'VM'} të regjistruar në nyjen {formData.proxmoxNode})
                         </span>
                       </div>
                     )}
 
-                    <div className="text-[11px] text-gray-400 flex items-center justify-between px-1">
-                      <span>✓ Kur zgjidhni një shabllon, CPU, RAM, Disk dhe Nyja sinkronizohen automatikisht.</span>
-                      <span className="text-cyber-green font-mono">Live Proxmox Sync</span>
+                    <div className="text-[10px] text-gray-400 flex items-center justify-between px-1">
+                      <span>✓ Zgjedhja e shabllonit sinkronizon automatikisht Cores, RAM, Disk dhe Storage.</span>
+                      <span className="text-cyber-green font-mono">Dynamic Proxmox Link</span>
                     </div>
                   </div>
                 </div>
