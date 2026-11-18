@@ -554,7 +554,7 @@ export default function ChallengeManagementModal({
                   ⚙️ Datacenter (CH1) & Ambienti Proxmox
                 </span>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   {/* 1. Datacenter */}
                   <div>
                     <label className="block text-gray-400 uppercase tracking-widest mb-1">
@@ -599,19 +599,24 @@ export default function ChallengeManagementModal({
                       value={formData.proxmoxNode}
                       onChange={(e) => {
                         const nextNode = e.target.value;
-                        const firstTplOnNode = liveTemplates.find((t) => t.node === nextNode);
-                        if (firstTplOnNode) {
+                        const matchingTpls = liveTemplates.filter((t) => t.node === nextNode);
+                        if (matchingTpls.length > 0) {
+                          const firstTpl = matchingTpls[0];
                           setFormData({
                             ...formData,
                             proxmoxNode: nextNode,
-                            templateId: firstTplOnNode.vmid,
-                            runtimeType: firstTplOnNode.type,
-                            cpuCores: firstTplOnNode.maxcpu || formData.cpuCores,
-                            ramMB: firstTplOnNode.maxmemMB || formData.ramMB,
-                            diskGB: firstTplOnNode.maxdiskGB || formData.diskGB,
+                            templateId: firstTpl.vmid,
+                            runtimeType: firstTpl.type,
+                            cpuCores: firstTpl.maxcpu || formData.cpuCores,
+                            ramMB: firstTpl.maxmemMB || formData.ramMB,
+                            diskGB: firstTpl.maxdiskGB || formData.diskGB,
                           });
                         } else {
-                          setFormData({ ...formData, proxmoxNode: nextNode });
+                          setFormData({
+                            ...formData,
+                            proxmoxNode: nextNode,
+                            templateId: 0,
+                          });
                         }
                       }}
                       className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow font-bold"
@@ -631,27 +636,11 @@ export default function ChallengeManagementModal({
                     </select>
                   </div>
 
-                  {/* 3. Lloji i Ambientit */}
-                  <div>
-                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                      Lloji i Ambientit *
-                    </label>
-                    <select
-                      value={formData.runtimeType}
-                      onChange={(e) => setFormData({ ...formData, runtimeType: e.target.value as ChallengeRuntime })}
-                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-cyan font-bold focus:outline-none focus:border-cyber-cyan"
-                    >
-                      <option value="PROXMOX_CT">Proxmox LXC Container (CT)</option>
-                      <option value="PROXMOX_VM">Proxmox QEMU Machine (VM)</option>
-                      <option value="DOCKER">Docker Container (Lokal në VM5)</option>
-                    </select>
-                  </div>
-
-                  {/* 4. ID / MAKINAT ME SPECIFIKAT E TYRE */}
-                  <div className="col-span-3">
+                  {/* 3. ID E MAKINËS NË PROXMOX (Listohen vetëm ID-të që ka nyja e përzgjedhur; nëse nuk ka, shfaqet bosh) */}
+                  <div className="col-span-2">
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-gray-400 uppercase tracking-widest block">
-                        ID e Makinës në Proxmox (Makinat & Specifikat e plota) *
+                        ID e Makinës në Proxmox (Template ID) *
                       </label>
                       <button
                         type="button"
@@ -664,7 +653,7 @@ export default function ChallengeManagementModal({
 
                     {filteredLiveTemplates.length > 0 ? (
                       <select
-                        value={formData.templateId}
+                        value={formData.templateId || ''}
                         onChange={(e) => {
                           const val = parseInt(e.target.value, 10);
                           const selectedTpl = liveTemplates.find((t) => t.vmid === val);
@@ -691,28 +680,16 @@ export default function ChallengeManagementModal({
                         ))}
                       </select>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={formData.templateId}
-                          onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
-                          className="flex-1 bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
-                        >
-                          <option value={101}>
-                            ID: 101 — juice-shop-host-A [LXC] | 1 Core | 1024 MB RAM | 8 GB Disk (pms1)
-                          </option>
-                          <option value={formData.templateId}>ID: {formData.templateId} (Manual)</option>
-                        </select>
-                        <input
-                          type="number"
-                          value={formData.templateId}
-                          onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
-                          placeholder="Shkruaj ID"
-                          className="w-28 bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold text-center focus:outline-none focus:border-cyber-yellow"
-                        />
-                      </div>
+                      <select
+                        disabled
+                        value=""
+                        className="w-full bg-dark-bg/60 border border-dark-border/60 rounded px-3 py-2 text-gray-500 italic focus:outline-none cursor-not-allowed"
+                      >
+                        <option value="">(Bosh — Nyja {formData.proxmoxNode} nuk ka asnjë makinë/template)</option>
+                      </select>
                     )}
                     <span className="text-[10px] text-gray-500 mt-1 block">
-                      ✓ Përzgjedhja e makinës nga lista përcakton automatikisht Llojin e Ambientit, CPU, RAM dhe Diskun.
+                      ✓ Specifikat teknike dhe lloji i ambientit plotësohen automatikisht nga ID e zgjedhur në nyjen {formData.proxmoxNode}.
                     </span>
                   </div>
                 </div>
@@ -989,7 +966,28 @@ export default function ChallengeManagementModal({
                     </div>
                     <select
                       value={formData.proxmoxNode}
-                      onChange={(e) => setFormData({ ...formData, proxmoxNode: e.target.value })}
+                      onChange={(e) => {
+                        const nextNode = e.target.value;
+                        const matchingTpls = liveTemplates.filter((t) => t.node === nextNode);
+                        if (matchingTpls.length > 0) {
+                          const firstTpl = matchingTpls[0];
+                          setFormData({
+                            ...formData,
+                            proxmoxNode: nextNode,
+                            templateId: firstTpl.vmid,
+                            runtimeType: firstTpl.type,
+                            cpuCores: firstTpl.maxcpu || formData.cpuCores,
+                            ramMB: firstTpl.maxmemMB || formData.ramMB,
+                            diskGB: firstTpl.maxdiskGB || formData.diskGB,
+                          });
+                        } else {
+                          setFormData({
+                            ...formData,
+                            proxmoxNode: nextNode,
+                            templateId: 0,
+                          });
+                        }
+                      }}
                       className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow font-bold"
                     >
                       {availableNodesForRuntime.map((n) => {
@@ -1007,30 +1005,14 @@ export default function ChallengeManagementModal({
                     </select>
                   </div>
 
-                  {/* 3. Lloji i Ambientit */}
-                  <div>
+                  {/* 3. ID / MAKINAT ME SPECIFIKAT E TYRE */}
+                  <div className="col-span-2">
                     <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                      Lloji i Ambientit *
-                    </label>
-                    <select
-                      value={formData.runtimeType}
-                      onChange={(e) => setFormData({ ...formData, runtimeType: e.target.value as ChallengeRuntime })}
-                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-cyan font-bold focus:outline-none focus:border-cyber-cyan"
-                    >
-                      <option value="PROXMOX_CT">Proxmox LXC Container (CT)</option>
-                      <option value="PROXMOX_VM">Proxmox QEMU Machine (VM)</option>
-                      <option value="DOCKER">Docker Container</option>
-                    </select>
-                  </div>
-
-                  {/* 4. ID / MAKINAT ME SPECIFIKAT E TYRE */}
-                  <div className="col-span-3">
-                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                      ID e Makinës në Proxmox (Makinat & Specifikat e plota) *
+                      ID e Makinës në Proxmox (Template ID) *
                     </label>
                     {filteredLiveTemplates.length > 0 ? (
                       <select
-                        value={formData.templateId}
+                        value={formData.templateId || ''}
                         onChange={(e) => {
                           const val = parseInt(e.target.value, 10);
                           const selectedTpl = liveTemplates.find((t) => t.vmid === val);
@@ -1057,15 +1039,13 @@ export default function ChallengeManagementModal({
                         ))}
                       </select>
                     ) : (
-                      <input
-                        type="number"
-                        required
-                        min={100}
-                        max={9999}
-                        value={formData.templateId}
-                        onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
-                        className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
-                      />
+                      <select
+                        disabled
+                        value=""
+                        className="w-full bg-dark-bg/60 border border-dark-border/60 rounded px-3 py-2 text-gray-500 italic focus:outline-none cursor-not-allowed"
+                      >
+                        <option value="">(Bosh — Nyja {formData.proxmoxNode} nuk ka asnjë makinë/template)</option>
+                      </select>
                     )}
                   </div>
                 </div>
