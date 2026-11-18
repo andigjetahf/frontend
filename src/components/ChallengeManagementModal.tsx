@@ -57,6 +57,28 @@ export default function ChallengeManagementModal({
   const [liveStorages, setLiveStorages] = useState<string[]>(['TrueNas', 'local-lvm', 'local']);
   const [templateSearch, setTemplateSearch] = useState<string>('');
 
+  // Form data supporting Proxmox Hardware specifications & Docker
+  const defaultFormData = {
+    name: '',
+    slug: '',
+    description: '',
+    category: 'Web Security',
+    difficulty: 'Medium',
+    points: 500,
+    runtimeType: 'PROXMOX_CT' as ChallengeRuntime,
+    proxmoxNode: 'pms1',
+    templateId: 101,
+    cpuCores: 1,
+    ramMB: 1024,
+    diskGB: 8,
+    storagePool: 'TrueNas',
+    connectionType: 'HTTP' as ConnectionType,
+    dockerImage: 'bkimminich/juice-shop:v16.0.0',
+    internalPort: 3000,
+  };
+
+  const [formData, setFormData] = useState(defaultFormData);
+
   // Sinkronizimi i dyanshëm midis formës kryesore dhe listës së shablloneve të Proxmox
   const filteredLiveTemplates = useMemo(() => {
     return liveTemplates.filter((t) => {
@@ -80,28 +102,6 @@ export default function ChallengeManagementModal({
       return matchNode && matchType && matchSearch;
     });
   }, [liveTemplates, formData.proxmoxNode, formData.runtimeType, templateSearch]);
-
-  // Form data supporting Proxmox Hardware specifications & Docker
-  const defaultFormData = {
-    name: '',
-    slug: '',
-    description: '',
-    category: 'Web Security',
-    difficulty: 'Medium',
-    points: 500,
-    runtimeType: 'PROXMOX_CT' as ChallengeRuntime,
-    proxmoxNode: 'pms1',
-    templateId: 101,
-    cpuCores: 1,
-    ramMB: 1024,
-    diskGB: 8,
-    storagePool: 'TrueNas',
-    connectionType: 'HTTP' as ConnectionType,
-    dockerImage: 'bkimminich/juice-shop:v16.0.0',
-    internalPort: 3000,
-  };
-
-  const [formData, setFormData] = useState(defaultFormData);
 
   const fetchChallenges = useCallback(async () => {
     setLoading(true);
