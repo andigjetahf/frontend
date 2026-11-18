@@ -865,7 +865,7 @@ export default function ChallengeManagementModal({
                   disabled={actionLoading}
                   className="px-5 py-2 bg-cyber-yellow text-dark-bg font-bold rounded uppercase hover:bg-cyber-yellow/90 disabled:opacity-50"
                 >
-                  {actionLoading ? 'Duke regjistruar...' : 'Krijo Sfidë në Proxmox'}
+                  {actionLoading ? 'Duke regjistruar...' : 'KRIJO SFIDËN'}
                 </button>
               </div>
             </form>
