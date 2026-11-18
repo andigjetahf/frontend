@@ -124,7 +124,12 @@ export default function ChallengeManagementModal({
       ]);
       setChallenges(challengesData);
       if (nodesData && nodesData.length > 0) {
-        setLiveNodes(nodesData);
+        const typedNodes = nodesData.map((n: any) => ({
+          id: n.id,
+          name: n.name,
+          status: n.status === 'online' ? 'online' : n.status === 'offline' ? 'offline' : undefined,
+        }));
+        setLiveNodes(typedNodes);
       }
       if (templatesData && templatesData.length > 0) {
         setLiveTemplates(templatesData);
