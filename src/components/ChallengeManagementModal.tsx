@@ -69,6 +69,11 @@ export default function ChallengeManagementModal({
   const [liveStorages, setLiveStorages] = useState<string[]>(['TrueNas', 'local-lvm', 'local']);
   const [templateSearch, setTemplateSearch] = useState<string>('');
 
+  const [selectedDatacenter, setSelectedDatacenter] = useState<string>('CH1');
+  const [datacenters] = useState<{ id: string; name: string }[]>([
+    { id: 'CH1', name: 'Datacenter (CH1)' },
+  ]);
+
   // Form data supporting Proxmox Hardware specifications & Docker
   const defaultFormData = {
     name: '',
@@ -91,50 +96,21 @@ export default function ChallengeManagementModal({
 
   const [formData, setFormData] = useState(defaultFormData);
 
-  // 1. Nyjet që janë ONLINE dhe që mbajnë realisht ambientin e zgjedhur (PROXMOX_CT / PROXMOX_VM)
+  // 1. Të gjitha nyjet e Proxmox që ka Datacenter-i i përzgjedhur (p.sh. pms1, pms2, pms3 për CH1)
   const availableNodesForRuntime = useMemo(() => {
-    return liveNodes.filter((n) => {
-      // Vetëm nyjet online
-      const isOnline = n.status === 'online' || n.name?.toLowerCase().includes('online');
-      if (!isOnline) return false;
+    return liveNodes;
+  }, [liveNodes]);
 
-      // Nëse është DOCKER, lejohen të gjitha nyjet online (ose pms2/pms1)
-      if (formData.runtimeType === 'DOCKER') return true;
-
-      // Nëse është PROXMOX_CT ose PROXMOX_VM, shfaq vetëm nyjet që kanë templates/makina të atij lloji
-      const hasMatchingResource = liveTemplates.some(
-        (t) => t.node === n.id && (t.type === formData.runtimeType || formData.runtimeType === undefined)
-      );
-
-      // Nëse ende s'janë ngarkuar templates nga API, mbaj nyjet online si fallback
-      return liveTemplates.length === 0 || hasMatchingResource;
-    });
-  }, [liveNodes, liveTemplates, formData.runtimeType]);
-
-  // 2. Shabllonet burimore (CT, VM, Template) që plotësojnë ekzaktësisht kushtin e Nyjes dhe Llojit të zgjedhur
+  // 2. Shabllonet dhe makinat burimore të filtruara sipas Nyjes së përzgjedhur
   const filteredLiveTemplates = useMemo(() => {
     return liveTemplates.filter((t) => {
-      // Kushti 1: Duhet të përkasë me Llojin e Ambientit (LXC Container vs QEMU VM)
-      const matchType =
-        formData.runtimeType === 'DOCKER' ||
-        !formData.runtimeType ||
-        t.type === formData.runtimeType;
-
-      // Kushti 2: Duhet të ndodhet në Nyjen Proxmox të zgjedhur
-      const matchNode =
-        !formData.proxmoxNode ||
-        formData.proxmoxNode === 'ALL' ||
-        t.node === formData.proxmoxNode;
-
-      // Kushti 3: Kërkimi opsional me tekst (ID ose emër)
-      const matchSearch =
-        !templateSearch ||
-        String(t.vmid).includes(templateSearch) ||
-        (t.name && t.name.toLowerCase().includes(templateSearch.toLowerCase()));
-
-      return matchType && matchNode && matchSearch;
+      // Filtro sipas nyjes së përzgjedhur
+      if (formData.proxmoxNode && formData.proxmoxNode !== 'ALL' && t.node !== formData.proxmoxNode) {
+        return false;
+      }
+      return true;
     });
-  }, [liveTemplates, formData.runtimeType, formData.proxmoxNode, templateSearch]);
+  }, [liveTemplates, formData.proxmoxNode]);
 
   const fetchChallenges = useCallback(async () => {
     setLoading(true);
@@ -575,33 +551,94 @@ export default function ChallengeManagementModal({
               {/* SEKSIONI 1: PROXMOX PROVISIONING & AMBIENTI */}
               <div className="border border-cyber-cyan/30 rounded p-3 bg-cyber-cyan/5 space-y-3">
                 <span className="font-bold text-cyber-cyan text-xs uppercase tracking-wider block">
-                  ⚙️ Nga do të merret në Proxmox & Lloji i Ambientit
+                  ⚙️ Datacenter (CH1) & Ambienti Proxmox
                 </span>
 
-                <div className="grid grid-cols-2 gap-3">
-                  {/* 1. Lloji i Ambientit */}
+                <div className="grid grid-cols-3 gap-3">
+                  {/* 1. Datacenter */}
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      Datacenter *
+                    </label>
+                    <select
+                      value={selectedDatacenter}
+                      onChange={(e) => setSelectedDatacenter(e.target.value)}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-cyan font-bold focus:outline-none focus:border-cyber-cyan"
+                    >
+                      {datacenters.map((dc) => (
+                        <option key={dc.id} value={dc.id}>
+                          {dc.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 2. Nyja Proxmox (Listohen të gjitha nyjet me status online/offline) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-gray-400 uppercase tracking-widest">
+                        Nyja Proxmox (Target Node) *
+                      </label>
+                      {(() => {
+                        const currentNode = liveNodes.find((n) => n.id === formData.proxmoxNode);
+                        const isOnline = currentNode?.status === 'online' || currentNode?.name?.toLowerCase().includes('online');
+                        return (
+                          <span
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              isOnline
+                                ? 'bg-cyber-green/20 text-cyber-green border border-cyber-green/40'
+                                : 'bg-cyber-red/20 text-cyber-red border border-cyber-red/40'
+                            }`}
+                          >
+                            ● {isOnline ? 'ONLINE' : 'OFFLINE'}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                    <select
+                      value={formData.proxmoxNode}
+                      onChange={(e) => {
+                        const nextNode = e.target.value;
+                        const firstTplOnNode = liveTemplates.find((t) => t.node === nextNode);
+                        if (firstTplOnNode) {
+                          setFormData({
+                            ...formData,
+                            proxmoxNode: nextNode,
+                            templateId: firstTplOnNode.vmid,
+                            runtimeType: firstTplOnNode.type,
+                            cpuCores: firstTplOnNode.maxcpu || formData.cpuCores,
+                            ramMB: firstTplOnNode.maxmemMB || formData.ramMB,
+                            diskGB: firstTplOnNode.maxdiskGB || formData.diskGB,
+                          });
+                        } else {
+                          setFormData({ ...formData, proxmoxNode: nextNode });
+                        }
+                      }}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow font-bold"
+                    >
+                      {availableNodesForRuntime.map((n) => {
+                        const isOnline = n.status === 'online' || n.name?.toLowerCase().includes('online');
+                        return (
+                          <option
+                            key={n.id}
+                            value={n.id}
+                            className={isOnline ? 'text-cyber-green font-bold bg-dark-bg' : 'text-cyber-red font-bold bg-dark-bg'}
+                          >
+                            {n.id} ({isOnline ? '🟢 Online' : '🔴 Offline'})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {/* 3. Lloji i Ambientit */}
                   <div>
                     <label className="block text-gray-400 uppercase tracking-widest mb-1">
                       Lloji i Ambientit *
                     </label>
                     <select
                       value={formData.runtimeType}
-                      onChange={(e) => {
-                        const newType = e.target.value as ChallengeRuntime;
-                        // Kur ndryshohet tipi, përzgjidh nyjen e parë të disponueshme që e mban këtë ambient
-                        const matchingNodes = liveNodes.filter((n) => {
-                          if (n.status !== 'online' && !n.name?.toLowerCase().includes('online')) return false;
-                          if (newType === 'DOCKER') return true;
-                          return liveTemplates.some((t) => t.node === n.id && t.type === newType);
-                        });
-                        const nextNode = matchingNodes.length > 0 ? matchingNodes[0].id : formData.proxmoxNode;
-
-                        setFormData({
-                          ...formData,
-                          runtimeType: newType,
-                          proxmoxNode: nextNode,
-                        });
-                      }}
+                      onChange={(e) => setFormData({ ...formData, runtimeType: e.target.value as ChallengeRuntime })}
                       className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-cyan font-bold focus:outline-none focus:border-cyber-cyan"
                     >
                       <option value="PROXMOX_CT">Proxmox LXC Container (CT)</option>
@@ -610,33 +647,11 @@ export default function ChallengeManagementModal({
                     </select>
                   </div>
 
-                  {/* 2. Nyja Proxmox (Filtruar vetëm për ato ONLINE dhe që e mbajnë këtë ambient) */}
-                  <div>
-                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                      Nyja Proxmox (Target Node) *
-                    </label>
-                    <select
-                      value={formData.proxmoxNode}
-                      onChange={(e) => setFormData({ ...formData, proxmoxNode: e.target.value })}
-                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow font-bold"
-                    >
-                      {availableNodesForRuntime.length > 0 ? (
-                        availableNodesForRuntime.map((n) => (
-                          <option key={n.id} value={n.id}>
-                            {n.name}
-                          </option>
-                        ))
-                      ) : (
-                        <option value={formData.proxmoxNode}>{formData.proxmoxNode} (Nuk ka nyje online)</option>
-                      )}
-                    </select>
-                  </div>
-
-                  {/* 3. ID / SHABLLONI BURIMOR (Ekzaktësisht si Nyja Proxmox - Dropdown me ID nga Proxmox) */}
-                  <div className="col-span-2">
+                  {/* 4. ID / MAKINAT ME SPECIFIKAT E TYRE */}
+                  <div className="col-span-3">
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-gray-400 uppercase tracking-widest block">
-                        ID e Shabllonit / Makinës në Proxmox (Template ID) *
+                        ID e Makinës në Proxmox (Makinat & Specifikat e plota) *
                       </label>
                       <button
                         type="button"
@@ -671,7 +686,7 @@ export default function ChallengeManagementModal({
                       >
                         {filteredLiveTemplates.map((tpl) => (
                           <option key={tpl.vmid} value={tpl.vmid}>
-                            ID {tpl.vmid} - {tpl.name} ({tpl.type === 'PROXMOX_CT' ? 'LXC' : 'VM'} në {tpl.node})
+                            ID: {tpl.vmid} — {tpl.name} [{tpl.type === 'PROXMOX_CT' ? 'LXC' : 'VM'}] | {tpl.maxcpu} Cores | {tpl.maxmemMB} MB RAM | {tpl.maxdiskGB} GB Disk ({tpl.node})
                           </option>
                         ))}
                       </select>
@@ -682,8 +697,10 @@ export default function ChallengeManagementModal({
                           onChange={(e) => setFormData({ ...formData, templateId: parseInt(e.target.value, 10) || 101 })}
                           className="flex-1 bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-yellow font-bold focus:outline-none focus:border-cyber-yellow"
                         >
-                          <option value={101}>ID 101 - juice-shop-host-A (LXC në pms1)</option>
-                          <option value={formData.templateId}>ID {formData.templateId} (Manual)</option>
+                          <option value={101}>
+                            ID: 101 — juice-shop-host-A [LXC] | 1 Core | 1024 MB RAM | 8 GB Disk (pms1)
+                          </option>
+                          <option value={formData.templateId}>ID: {formData.templateId} (Manual)</option>
                         </select>
                         <input
                           type="number"
@@ -695,7 +712,7 @@ export default function ChallengeManagementModal({
                       </div>
                     )}
                     <span className="text-[10px] text-gray-500 mt-1 block">
-                      ✓ Kur përzgjidhni ID-në nga Proxmox, CPU, RAM dhe Disk sinkronizohen automatikisht.
+                      ✓ Përzgjedhja e makinës nga lista përcakton automatikisht Llojin e Ambientit, CPU, RAM dhe Diskun.
                     </span>
                   </div>
                 </div>
@@ -930,6 +947,67 @@ export default function ChallengeManagementModal({
                 </span>
 
                 <div className="grid grid-cols-3 gap-3">
+                  {/* 1. Datacenter */}
+                  <div>
+                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
+                      Datacenter *
+                    </label>
+                    <select
+                      value={selectedDatacenter}
+                      onChange={(e) => setSelectedDatacenter(e.target.value)}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-cyber-cyan font-bold focus:outline-none focus:border-cyber-cyan"
+                    >
+                      {datacenters.map((dc) => (
+                        <option key={dc.id} value={dc.id}>
+                          {dc.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 2. Nyja Proxmox (Listohen të gjitha nyjet me status online/offline) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-gray-400 uppercase tracking-widest">
+                        Nyja Proxmox *
+                      </label>
+                      {(() => {
+                        const currentNode = liveNodes.find((n) => n.id === formData.proxmoxNode);
+                        const isOnline = currentNode?.status === 'online' || currentNode?.name?.toLowerCase().includes('online');
+                        return (
+                          <span
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              isOnline
+                                ? 'bg-cyber-green/20 text-cyber-green border border-cyber-green/40'
+                                : 'bg-cyber-red/20 text-cyber-red border border-cyber-red/40'
+                            }`}
+                          >
+                            ● {isOnline ? 'ONLINE' : 'OFFLINE'}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                    <select
+                      value={formData.proxmoxNode}
+                      onChange={(e) => setFormData({ ...formData, proxmoxNode: e.target.value })}
+                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow font-bold"
+                    >
+                      {availableNodesForRuntime.map((n) => {
+                        const isOnline = n.status === 'online' || n.name?.toLowerCase().includes('online');
+                        return (
+                          <option
+                            key={n.id}
+                            value={n.id}
+                            className={isOnline ? 'text-cyber-green font-bold bg-dark-bg' : 'text-cyber-red font-bold bg-dark-bg'}
+                          >
+                            {n.id} ({isOnline ? '🟢 Online' : '🔴 Offline'})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {/* 3. Lloji i Ambientit */}
                   <div>
                     <label className="block text-gray-400 uppercase tracking-widest mb-1">
                       Lloji i Ambientit *
@@ -945,30 +1023,10 @@ export default function ChallengeManagementModal({
                     </select>
                   </div>
 
-                  <div>
+                  {/* 4. ID / MAKINAT ME SPECIFIKAT E TYRE */}
+                  <div className="col-span-3">
                     <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                      Nyja Proxmox *
-                    </label>
-                    <select
-                      value={formData.proxmoxNode}
-                      onChange={(e) => setFormData({ ...formData, proxmoxNode: e.target.value })}
-                      className="w-full bg-dark-bg border border-dark-border rounded px-3 py-2 text-gray-200 focus:outline-none focus:border-cyber-yellow"
-                    >
-                      {availableNodesForRuntime.length > 0 ? (
-                        availableNodesForRuntime.map((n) => (
-                          <option key={n.id} value={n.id}>
-                            {n.name}
-                          </option>
-                        ))
-                      ) : (
-                        <option value={formData.proxmoxNode}>{formData.proxmoxNode}</option>
-                      )}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-400 uppercase tracking-widest mb-1">
-                      Template ID *
+                      ID e Makinës në Proxmox (Makinat & Specifikat e plota) *
                     </label>
                     {filteredLiveTemplates.length > 0 ? (
                       <select
@@ -994,7 +1052,7 @@ export default function ChallengeManagementModal({
                       >
                         {filteredLiveTemplates.map((tpl) => (
                           <option key={tpl.vmid} value={tpl.vmid}>
-                            ID {tpl.vmid} - {tpl.name} ({tpl.type === 'PROXMOX_CT' ? 'LXC' : 'VM'})
+                            ID: {tpl.vmid} — {tpl.name} [{tpl.type === 'PROXMOX_CT' ? 'LXC' : 'VM'}] | {tpl.maxcpu} Cores | {tpl.maxmemMB} MB RAM | {tpl.maxdiskGB} GB Disk ({tpl.node})
                           </option>
                         ))}
                       </select>
